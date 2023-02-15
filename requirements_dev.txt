@@ -1,0 +1,10 @@
+-r requirements.txt
+
+# build
+setuptools_scm[toml]>=6.2
+
+# tests
+pytest>=7.0.0
+pytest-xdist>=2.5.0
+
+pre-commit>=3.0.0

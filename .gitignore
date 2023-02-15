@@ -1,0 +1,21 @@
+# common py
+__pycache__/
+*.py[cod]
+
+# pytest
+.pytest_cache/
+
+# editable install
+*.egg-info/
+*.egg
+src/paddlefx/version.py
+
+# build
+build/
+
+# vscode
+.vscode
+
+# misc
+.cache/
+*.so
