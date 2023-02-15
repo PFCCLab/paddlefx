@@ -19,4 +19,4 @@ pythonpath = "tests"
 testpaths = ["tests"]
 
 [tool.setuptools_scm]
-write_to = "src/paddlefx/version.py"
+write_to = "src/paddlefx/_version.py"

@@ -8,10 +8,12 @@ __pycache__/
 # editable install
 *.egg-info/
 *.egg
-src/paddlefx/version.py
 
 # build
 build/
+
+# setuptools_scm
+src/paddlefx/_version.py
 
 # vscode
 .vscode
