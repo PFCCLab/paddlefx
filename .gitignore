@@ -21,3 +21,4 @@ src/paddlefx/_version.py
 # misc
 .cache/
 *.so
+tmp/
