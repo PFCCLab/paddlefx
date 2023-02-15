@@ -25,7 +25,7 @@ if __name__ == "__main__":
         name='paddlefx',
         version=_get_version(),
         description='paddlefx is an experimental project of paddle python IR.',
-        license='Apache',
+        license='Apache 2.0',
         license_files=('LICENSE',),
         python_requires='>=3.7',
         install_requires=_get_install_requires(),
