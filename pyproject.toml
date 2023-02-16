@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+skip-string-normalization = true
+# default value may too big to run
+workers = 4
+
+# https://pycqa.github.io/isort/docs/configuration/options.html
+[tool.isort]
+profile = "black"
+lines_between_types = 1
+known_first_party = ["paddlefx"]
+
+[tool.pytest.ini_options]
+minversion = "7.0.0"
+pythonpath = "tests"
+testpaths = ["tests"]
+
+[tool.setuptools_scm]
+write_to = "src/paddlefx/_version.py"
