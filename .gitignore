@@ -11,7 +11,7 @@ __pycache__/
 
 # build
 build/
-src/paddlefx/_eval_frame.pyi
+src/paddlefx/*.pyi
 
 # setuptools_scm
 src/paddlefx/_version.py
