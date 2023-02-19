@@ -1,5 +1,10 @@
 -r requirements.txt
 
+# build
+mypy==1.0.0
+ninja==1.11.1
+cmake>=3.25.0
+
 # tests
 pytest>=7.0.0
 pytest-xdist>=2.5.0

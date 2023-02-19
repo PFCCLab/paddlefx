@@ -11,6 +11,7 @@ __pycache__/
 
 # build
 build/
+src/paddlefx/*.pyi
 
 # setuptools_scm
 src/paddlefx/_version.py
