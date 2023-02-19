@@ -1,7 +1,8 @@
 #include <Python.h>
+#include <stdio.h>
 
 static PyObject *bar(PyObject *module, PyObject *args) {
-  printf("\nfoo.bar\n");
+  printf("\ncall foo.bar\n");
   Py_RETURN_NONE;
 }
 
@@ -28,4 +29,4 @@ static PyModuleDef _foomodule = {
     NULL,
 };
 
-PyMODINIT_FUNC PyInit_module_foo(void) { return PyModule_Create(&_foomodule); }
+PyMODINIT_FUNC PyInit__eval_frame(void) { return PyModule_Create(&_foomodule); }
