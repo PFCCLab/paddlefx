@@ -1,8 +1,10 @@
 import builtins
 
 import paddle
+import paddle.nn
 
 from .node import Node
+from .proxy import magic_methods
 
 
 def _is_magic(x):

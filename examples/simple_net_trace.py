@@ -1,5 +1,8 @@
 import paddle
+import paddle.nn
+
 from paddlefx import symbolic_trace
+
 
 class MyNet(paddle.nn.Layer):
     def __init__(self):
@@ -14,6 +17,7 @@ class MyNet(paddle.nn.Layer):
         x = self._fc3(x)
         y = paddle.add(x=x, y=x)
         return paddle.nn.functional.relu(x=y)
+
 
 net = MyNet()
 
