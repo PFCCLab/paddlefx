@@ -3,6 +3,7 @@ import builtins
 import paddle
 
 from .node import Node
+from .proxy import magic_methods
 
 
 def _is_magic(x):
