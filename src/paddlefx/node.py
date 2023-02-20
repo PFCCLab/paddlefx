@@ -5,7 +5,7 @@ class Node:
         self.name = name  # unique name of value being created
         self.op = op  # the kind of operation = placeholder|call_method|call_module|call_function|getattr
         self.target = target  # for method/module/function, the name of the method/module/function/attr
-        # being invoked, e.g add, layer1, or torch.add
+        # being invoked, e.g add, layer1, or paddle.add
         self.args = args
         self.kwargs = kwargs
         self.uses = 0

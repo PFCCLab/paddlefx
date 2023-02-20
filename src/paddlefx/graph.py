@@ -1,13 +1,17 @@
+import builtins
+
+import paddle
+
 from .node import Node
 
-import builtins
-import paddle
 
 def _is_magic(x):
     return x.startswith('__') and x.endswith('__')
 
+
 def snake_case(s):
     return ''.join(['_' + i.lower() if i.isupper() else i for i in s]).lstrip('_')
+
 
 def _qualified_name(func):
     # things like getattr just appear in builtins
@@ -15,8 +19,8 @@ def _qualified_name(func):
         return func.__name__
     name = func.__name__
     module = _find_module_of_method(func)
-    module = module.replace('torch._ops', 'torch.ops')  # WAR for bug in how torch.ops assigns module
     return f'{module}.{name}'
+
 
 def _find_module_of_method(orig_method):
     name = orig_method.__name__
@@ -28,12 +32,14 @@ def _find_module_of_method(orig_method):
             return guess.__name__
     raise RuntimeError(f'cannot find module for {orig_method}')
 
+
 def _format_args(args, kwargs):
     args_s = ', '.join(repr(a) for a in args)
     kwargs_s = ', '.join(f'{k} = {repr(v)}' for k, v in kwargs.items())
     if args_s and kwargs_s:
         return f'{args_s}, {kwargs_s}'
     return args_s or kwargs_s
+
 
 def _format_target(base, target):
     elems = target.split('.')
@@ -45,8 +51,12 @@ def _format_target(base, target):
             r = f'{r}.{e}'
     return r
 
+
 def map_arg(a, fn):
-    """ apply fn to each Node appearing arg. arg may be a list, tuple, slice, or dict with string keys. """
+    """apply fn to each Node appearing arg.
+
+    arg may be a list, tuple, slice, or dict with string keys.
+    """
     if isinstance(a, (tuple, list)):
         return type(a)(map_arg(elem, fn) for elem in a)
     elif isinstance(a, dict):
@@ -58,6 +68,7 @@ def map_arg(a, fn):
     else:
         return a
 
+
 class Graph:
     def __init__(self):
         self.nodes = []
@@ -67,15 +78,30 @@ class Graph:
         def add_use(n: Node):
             n.uses += 1
             return n
+
         map_arg(a, add_use)
 
     def create_node(self, op, target=None, args=None, kwargs=None, name=None):
-        assert op in ('call_function', 'call_method', 'get_param', 'call_module', 'placeholder', 'output')
+        assert op in (
+            'call_function',
+            'call_method',
+            'get_param',
+            'call_module',
+            'placeholder',
+            'output',
+        )
         args = () if args is None else args
         kwargs = {} if kwargs is None else kwargs
         self._mark_uses(args)
         self._mark_uses(kwargs)
-        n = Node(self, name if name is not None else self._name(target or op), op, target, args, kwargs)
+        n = Node(
+            self,
+            name if name is not None else self._name(target or op),
+            op,
+            target,
+            args,
+            kwargs,
+        )
         self.nodes.append(n)
         return n
 
@@ -93,7 +119,11 @@ class Graph:
 
         if op not in self._used_names:
             self._used_names[op] = 0
-            if not hasattr(paddle, op) and not hasattr(paddle.nn.functional, op) and not hasattr(paddle.nn, op):
+            if (
+                not hasattr(paddle, op)
+                and not hasattr(paddle.nn.functional, op)
+                and not hasattr(paddle.nn, op)
+            ):
                 return op
         i = self._used_names[op] = self._used_names[op] + 1
         return f'{op}_{i}'
@@ -114,25 +144,43 @@ class Graph:
             elif node.op == 'call_method':
                 body.append(
                     f'{node.name} = {_format_target(repr(node.args[0]), node.target)}'
-                    f'({_format_args(node.args[1:], node.kwargs)})\n')
+                    f'({_format_args(node.args[1:], node.kwargs)})\n'
+                )
                 continue
             elif node.op == 'call_function':
                 # pretty print operators
-                if node.target.__module__ == '_operator' and node.target.__name__ in magic_methods:
-                    body.append(f'{node.name} = {magic_methods[node.target.__name__].format(*(repr(a) for a in node.args))}\n')
+                if (
+                    node.target.__module__ == '_operator'
+                    and node.target.__name__ in magic_methods
+                ):
+                    body.append(
+                        f'{node.name} = {magic_methods[node.target.__name__].format(*(repr(a) for a in node.args))}\n'
+                    )
                     continue
                 qualified_name = _qualified_name(node.target)
-                if qualified_name == 'getattr' and isinstance(node.args[1], str) and node.args[1].isidentifier():
+                if (
+                    qualified_name == 'getattr'
+                    and isinstance(node.args[1], str)
+                    and node.args[1].isidentifier()
+                ):
                     # pretty print attribute access
-                    body.append(f'{node.name} = {_format_target(repr(node.args[0]), node.args[1])}\n')
+                    body.append(
+                        f'{node.name} = {_format_target(repr(node.args[0]), node.args[1])}\n'
+                    )
                     continue
-                body.append(f'{node.name} = {qualified_name}({_format_args(node.args, node.kwargs)})\n')
+                body.append(
+                    f'{node.name} = {qualified_name}({_format_args(node.args, node.kwargs)})\n'
+                )
                 continue
             elif node.op == 'call_module':
-                body.append(f'{node.name} = {_format_target(root_module,node.target)}({_format_args(node.args, node.kwargs)})\n')
+                body.append(
+                    f'{node.name} = {_format_target(root_module,node.target)}({_format_args(node.args, node.kwargs)})\n'
+                )
                 continue
             elif node.op == 'get_param':
-                body.append(f'{node.name} = {_format_target(root_module, node.target)}\n')
+                body.append(
+                    f'{node.name} = {_format_target(root_module, node.target)}\n'
+                )
                 continue
             elif node.op == 'output':
                 body.append(f'return {node.args}\n')
@@ -143,18 +191,20 @@ class Graph:
         return src, free_vars
 
     def print_tabular(self):
-        """
-        Prints the intermediate representation of the graph in tabular
-        format. Note that this API requires the ``tabulate`` module to be
-        installed.
+        """Prints the intermediate representation of the graph in tabular
+        format.
+
+        Note that this API requires the ``tabulate`` module to be installed.
         """
         try:
             from tabulate import tabulate
         except ImportError:
-            print("`print_tabular` relies on the library `tabulate`, "
-                  "which could not be found on this machine. Run `pip "
-                  "install tabulate` to install the library.")
-        node_specs = [[n.op, n.name, n.target, n.args, n.kwargs]
-                      for n in self.nodes]
-        print(tabulate(node_specs,
-              headers=['opcode', 'name', 'target', 'args', 'kwargs']))
+            print(
+                "`print_tabular` relies on the library `tabulate`, "
+                "which could not be found on this machine. Run `pip "
+                "install tabulate` to install the library."
+            )
+        node_specs = [[n.op, n.name, n.target, n.args, n.kwargs] for n in self.nodes]
+        print(
+            tabulate(node_specs, headers=['opcode', 'name', 'target', 'args', 'kwargs'])
+        )
