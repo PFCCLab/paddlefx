@@ -28,4 +28,4 @@ print('fin set_eval_frame(callback)')
 
 add(1, 3)
 
-print('fin')
+print('\nfin')
