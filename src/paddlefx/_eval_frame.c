@@ -9,6 +9,9 @@
 #undef Py_BUILD_CORE
 #endif
 
+#define DEBUG_TRACE0(msg)                                                      \
+  fprintf(stderr, "TRACE[%s:%d] " msg "\n", __func__, __LINE__)
+
 #define unlikely(x) __builtin_expect((x), 0)
 
 static Py_tss_t eval_frame_callback_key = Py_tss_NEEDS_INIT;
@@ -50,6 +53,9 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
     return eval_frame_default(tstate, frame, throw_flag);
   }
 
+  // We don't run the current custom_eval_frame behavior for guards.
+  // So we temporarily set the callback to Py_None to drive the correct behavior
+  // in the shim.
   eval_frame_callback_set(Py_None);
 
   PyObject *args = Py_BuildValue("(O)", frame);
@@ -57,16 +63,11 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
   if (result == NULL) {
     // internal exception
     return NULL;
-  } else if (result != Py_None) {
-    Py_DECREF(result);
-    eval_frame_callback_set(callback);
-    return eval_frame_default(tstate, frame, throw_flag);
-  } else {
-    Py_DECREF(result);
-    // Re-enable custom behavior
-    eval_frame_callback_set(callback);
-    return eval_frame_default(tstate, frame, throw_flag);
   }
+  Py_DECREF(result);
+
+  eval_frame_callback_set(callback);
+  return eval_frame_default(tstate, frame, throw_flag);
 }
 
 static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
@@ -92,6 +93,7 @@ static PyObject *increment_working_threads(PyThreadState *tstate) {
   if (active_dynamo_threads > 0) {
     if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
       // First call
+      DEBUG_TRACE0("set custom_eval_frame_shim");
       tstate->interp->eval_frame = &custom_eval_frame_shim;
     }
   }
@@ -104,6 +106,7 @@ static PyObject *decrement_working_threads(PyThreadState *tstate) {
     if (active_dynamo_threads == 0) {
       if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
         // First call
+        DEBUG_TRACE0("set _PyEval_EvalFrameDefault");
         tstate->interp->eval_frame = &_PyEval_EvalFrameDefault;
       }
     }
