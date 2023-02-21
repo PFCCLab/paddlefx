@@ -86,50 +86,24 @@ static PyObject *custom_eval_frame_shim(PyFrameObject *frame, int throw_flag) {
   return _custom_eval_frame_shim(tstate, frame, throw_flag);
 }
 
-static int active_dynamo_threads = 0;
-
-static PyObject *increment_working_threads(PyThreadState *tstate) {
-  active_dynamo_threads = active_dynamo_threads + 1;
-  if (active_dynamo_threads > 0) {
-    if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
-      // First call
-      DEBUG_TRACE0("set custom_eval_frame_shim");
-      tstate->interp->eval_frame = &custom_eval_frame_shim;
-    }
-  }
-  Py_RETURN_NONE;
-}
-
-static PyObject *decrement_working_threads(PyThreadState *tstate) {
-  if (active_dynamo_threads > 0) {
-    active_dynamo_threads = active_dynamo_threads - 1;
-    if (active_dynamo_threads == 0) {
-      if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
-        // First call
-        DEBUG_TRACE0("set _PyEval_EvalFrameDefault");
-        tstate->interp->eval_frame = &_PyEval_EvalFrameDefault;
-      }
-    }
-  }
-  Py_RETURN_NONE;
-}
-
 static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
   // Change the eval frame callback and return the old one
   PyObject *old_callback = eval_frame_callback_get();
 
-  // owned by caller
-  Py_INCREF(old_callback);
-
+  // not support multi-thread now
   if (old_callback != Py_None && new_callback == Py_None) {
-    decrement_working_threads(tstate);
+    if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
+      DEBUG_TRACE0("set _PyEval_EvalFrameDefault");
+      tstate->interp->eval_frame = &_PyEval_EvalFrameDefault;
+    }
   } else if (old_callback == Py_None && new_callback != Py_None) {
-    increment_working_threads(tstate);
+    if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
+      DEBUG_TRACE0("set custom_eval_frame_shim");
+      tstate->interp->eval_frame = &custom_eval_frame_shim;
+    }
   }
 
   Py_INCREF(new_callback);
-  Py_DECREF(old_callback);
-
   eval_frame_callback_set(new_callback);
 
   return old_callback;
