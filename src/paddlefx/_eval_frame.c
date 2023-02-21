@@ -46,9 +46,27 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
     return NULL;
   }
 
+  if (callback == Py_False) {
+    return eval_frame_default(tstate, frame, throw_flag);
+  }
+
+  eval_frame_callback_set(Py_None);
+
   PyObject *args = Py_BuildValue("(O)", frame);
   PyObject *result = PyObject_CallObject(callback, args);
-  return eval_frame_default(tstate, frame, throw_flag);
+  if (result == NULL) {
+    // internal exception
+    return NULL;
+  } else if (result != Py_None) {
+    Py_DECREF(result);
+    eval_frame_callback_set(callback);
+    return eval_frame_default(tstate, frame, throw_flag);
+  } else {
+    Py_DECREF(result);
+    // Re-enable custom behavior
+    eval_frame_callback_set(callback);
+    return eval_frame_default(tstate, frame, throw_flag);
+  }
 }
 
 static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
@@ -67,18 +85,48 @@ static PyObject *custom_eval_frame_shim(PyFrameObject *frame, int throw_flag) {
   return _custom_eval_frame_shim(tstate, frame, throw_flag);
 }
 
+static int active_dynamo_threads = 0;
+
+static PyObject *increment_working_threads(PyThreadState *tstate) {
+  active_dynamo_threads = active_dynamo_threads + 1;
+  if (active_dynamo_threads > 0) {
+    if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
+      // First call
+      tstate->interp->eval_frame = &custom_eval_frame_shim;
+    }
+  }
+  Py_RETURN_NONE;
+}
+
+static PyObject *decrement_working_threads(PyThreadState *tstate) {
+  if (active_dynamo_threads > 0) {
+    active_dynamo_threads = active_dynamo_threads - 1;
+    if (active_dynamo_threads == 0) {
+      if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
+        // First call
+        tstate->interp->eval_frame = &_PyEval_EvalFrameDefault;
+      }
+    }
+  }
+  Py_RETURN_NONE;
+}
+
 static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
   // Change the eval frame callback and return the old one
   PyObject *old_callback = eval_frame_callback_get();
 
-  // TODO: multi-threading is not supported now
-  if (old_callback == Py_None) {
-    if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
-      tstate->interp->eval_frame = &custom_eval_frame_shim;
-    }
+  // owned by caller
+  Py_INCREF(old_callback);
+
+  if (old_callback != Py_None && new_callback == Py_None) {
+    decrement_working_threads(tstate);
+  } else if (old_callback == Py_None && new_callback != Py_None) {
+    increment_working_threads(tstate);
   }
 
   Py_INCREF(new_callback);
+  Py_DECREF(old_callback);
+
   eval_frame_callback_set(new_callback);
 
   return old_callback;
