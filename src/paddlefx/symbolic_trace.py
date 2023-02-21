@@ -47,21 +47,34 @@ class Tracer:
         paddle.nn.functional.relu = orig_relu_call
 
     def trace(self, root) -> Graph:
-        # for now, it only support paddle.nn.Layer
-        # TODO: we should support callable object,
-        fn = type(root).forward
+        is_layer = isinstance(root, paddle.nn.Layer)
+        if is_layer:
+            fn = type(root).forward
+        else:
+            fn = root
 
         # for now, it only support postional args
         # TODO: we should support keyword args
+        skip_arg_idx = 0
         co = fn.__code__
-        args = [root]
-
+        total_args = co.co_argcount
         names_iter = iter(co.co_varnames)
+        args = []
+        if is_layer:
+            # Fill the first argument with self
+            # and skips creating a proxy for self
+            args.append(root)
+            next(names_iter)
+            skip_arg_idx = 1
+        else:
+            root = paddle.nn.Layer()
 
-        next(names_iter)  # skip self
-        for _ in range(1, co.co_argcount):
+        # Fill other arguments
+        for _ in range(skip_arg_idx, total_args):
             name = next(names_iter)
             args.append(self._proxy_placeholder(name))
+
+        assert len(args) == total_args
 
         # monkey patch paddle.nn.Layer to create a proxy for it
         orig_module_call = paddle.nn.Layer.__call__
