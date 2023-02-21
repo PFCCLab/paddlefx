@@ -1,6 +1,13 @@
 #include <Python.h>
 #include <frameobject.h>
-#include <stdio.h>
+#include <pystate.h>
+
+// see https://bugs.python.org/issue35886
+#if PY_VERSION_HEX >= 0x03080000
+#define Py_BUILD_CORE
+#include "internal/pycore_pystate.h"
+#undef Py_BUILD_CORE
+#endif
 
 #define unlikely(x) __builtin_expect((x), 0)
 
@@ -39,7 +46,8 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
     return NULL;
   }
 
-  PyObject *result = PyObject_CallObject(callback, frame);
+  PyObject *args = Py_BuildValue("(O)", frame);
+  PyObject *result = PyObject_CallObject(callback, args);
   return eval_frame_default(tstate, frame, throw_flag);
 }
 
