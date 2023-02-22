@@ -1,5 +1,6 @@
-import types
 import dis
+import types
+
 from paddlefx._eval_frame import set_eval_frame
 
 
