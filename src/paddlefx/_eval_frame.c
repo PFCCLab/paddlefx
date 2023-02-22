@@ -35,22 +35,10 @@ inline static PyObject *eval_frame_default(PyThreadState *tstate,
   return _PyEval_EvalFrameDefault(frame, throw_flag);
 }
 
-static inline PyObject *call_callback(PyObject *callable, PyObject *frame,
-                                      long cache_len) {
-  PyObject *args = Py_BuildValue("(Ol)", frame, cache_len);
-  PyObject *result = PyObject_CallObject(callable, args);
-  Py_DECREF(args);
-  return result;
-}
-
 static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
                                     int throw_flag, PyObject *callback) {
   if (PyFrame_FastToLocalsWithError(frame) < 0) {
     return NULL;
-  }
-
-  if (callback == Py_False) {
-    return eval_frame_default(tstate, frame, throw_flag);
   }
 
   // We don't run the current custom_eval_frame behavior for guards.
@@ -66,6 +54,7 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
   }
   Py_DECREF(result);
 
+  // set callback back
   eval_frame_callback_set(callback);
   return eval_frame_default(tstate, frame, throw_flag);
 }
@@ -88,9 +77,12 @@ static PyObject *custom_eval_frame_shim(PyFrameObject *frame, int throw_flag) {
 
 static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
   // Change the eval frame callback and return the old one
+  //  - None: disables Dynamo
+  //  - Python callable(): enables Dynamo
+  //  NOTE: Cache is not supported now
   PyObject *old_callback = eval_frame_callback_get();
 
-  // not support multi-thread now
+  // NOTE: multi-threading is not supported now
   if (old_callback != Py_None && new_callback == Py_None) {
     if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
       DEBUG_TRACE0("set _PyEval_EvalFrameDefault");
@@ -112,10 +104,12 @@ static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
 static PyObject *set_eval_frame_py(PyObject *dummy, PyObject *args) {
   PyObject *callback = NULL;
   if (!PyArg_ParseTuple(args, "O:callback", &callback)) {
+    DEBUG_TRACE0("arg error");
     return NULL;
   }
   if (callback != Py_None && callback != Py_False &&
       !PyCallable_Check(callback)) {
+    DEBUG_TRACE0("arg error");
     PyErr_SetString(PyExc_TypeError, "expected a callable");
     return NULL;
   }
