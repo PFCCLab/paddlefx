@@ -1,8 +1,12 @@
+import types
+import dis
 from paddlefx._eval_frame import set_eval_frame
 
 
-def callback(frame):
+def callback(frame: types.FrameType):
     print('enter callback')
+    print(frame)
+    print(dis.disassemble(frame.f_code))
 
 
 def add(a, b):
@@ -10,22 +14,12 @@ def add(a, b):
     return a + b
 
 
-print('start set_eval_frame(callback)')
+print('set_eval_frame(callback)')
 set_eval_frame(callback)
-print('fin set_eval_frame(callback)')
 
 add(1, 3)
 
-print('\nstart set_eval_frame(None)')
+print('\nset_eval_frame(None)')
 set_eval_frame(None)
-print('fin set_eval_frame(None)')
 
 add(1, 4)
-
-print('\nstart set_eval_frame(callback)')
-set_eval_frame(callback)
-print('fin set_eval_frame(callback)')
-
-add(1, 3)
-
-print('\nfin')

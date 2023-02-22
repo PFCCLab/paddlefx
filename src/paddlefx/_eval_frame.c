@@ -52,11 +52,12 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
     // internal exception
     return NULL;
   }
-  Py_DECREF(result);
+
+  //  NOTE: Cache is not supported now
 
   // set callback back
   eval_frame_callback_set(callback);
-  return eval_frame_default(tstate, frame, throw_flag);
+  return result;
 }
 
 static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
