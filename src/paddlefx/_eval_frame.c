@@ -37,6 +37,8 @@ inline static PyObject *eval_frame_default(PyThreadState *tstate,
 
 static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
                                     int throw_flag, PyObject *callback) {
+  // TODO: why need this line?
+  // https://peps.python.org/pep-0558/#fast-locals-proxy-implementation-details
   if (PyFrame_FastToLocalsWithError(frame) < 0) {
     return NULL;
   }
