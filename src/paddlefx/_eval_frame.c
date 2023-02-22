@@ -2,6 +2,10 @@
 #include <frameobject.h>
 #include <pystate.h>
 
+// NOTE: This file is a simplified version of
+// https://github.com/pytorch/pytorch/blob/master/torch/csrc/dynamo/eval_frame.c
+// https://github.com/pytorch/torchdynamo/blob/1.13/torchdynamo/_eval_frame.c
+
 // see https://bugs.python.org/issue35886
 #if PY_VERSION_HEX >= 0x03080000
 #define Py_BUILD_CORE
