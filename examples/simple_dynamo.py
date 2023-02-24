@@ -8,19 +8,29 @@ def callback(frame: types.FrameType):
     print('enter callback')
     print(frame)
     print(dis.disassemble(frame.f_code))
+    f_code = frame.f_code
+    print()
 
 
 def add(a, b):
     print('call add')
-    return a + b
+    c = a + b
+    return c
+
+
+def func(a=1, b=3):
+    print('call func')
+    c = add(a, b)
+    d = add(c, a)
+    return d
 
 
 print('set_eval_frame(callback)')
 set_eval_frame(callback)
 
-add(1, 3)
+func(1, 3)
 
 print('\nset_eval_frame(None)')
 set_eval_frame(None)
 
-add(1, 4)
+func(1, 4)
