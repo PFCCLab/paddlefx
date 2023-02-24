@@ -123,7 +123,7 @@ static PyObject *set_eval_frame_py(PyObject *dummy, PyObject *args) {
   return set_eval_frame(callback, PyThreadState_GET());
 }
 
-static PyMethodDef foo_methods[] = {
+static PyMethodDef _methods[] = {
     {"set_eval_frame", set_eval_frame_py, METH_VARARGS, NULL},
     {NULL, NULL},
 };
@@ -133,7 +133,7 @@ static PyModuleDef _module = {
     "_eval_frame",
     "_eval_frame doc",
     -1,
-    foo_methods,
+    _methods,
     NULL,
     NULL,
     NULL,
