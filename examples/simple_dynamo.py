@@ -1,15 +1,20 @@
 import dis
 import types
 
+import opcode  # noqa
+
 from paddlefx._eval_frame import set_eval_frame
+
+# a: types.CodeType = None
+# a.co_code
 
 
 def callback(frame: types.FrameType):
     print('enter callback')
     print(frame)
-    print(dis.disassemble(frame.f_code))
+    # print(dis.disassemble(frame.f_code))
     f_code = frame.f_code
-    print()
+    return f_code
 
 
 def add(a, b):
@@ -29,8 +34,9 @@ print('set_eval_frame(callback)')
 set_eval_frame(callback)
 
 func(1, 3)
+# add(1, 3)
 
 print('\nset_eval_frame(None)')
 set_eval_frame(None)
 
-func(1, 4)
+# func(1, 4)

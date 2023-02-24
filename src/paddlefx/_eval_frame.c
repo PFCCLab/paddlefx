@@ -43,9 +43,10 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
                                     int throw_flag, PyObject *callback) {
   // TODO: why need this line?
   // https://peps.python.org/pep-0558/#fast-locals-proxy-implementation-details
-  if (PyFrame_FastToLocalsWithError(frame) < 0) {
-    return NULL;
-  }
+  // https://devguide.python.org/internals/interpreter/#all-sorts-of-variables
+  // if (PyFrame_FastToLocalsWithError(frame) < 0) {
+  //   return NULL;
+  // }
 
   // We don't run the current custom_eval_frame behavior for guards.
   // So we temporarily set the callback to Py_None to drive the correct behavior
@@ -57,13 +58,19 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
   if (result == NULL) {
     // internal exception
     return NULL;
+  } else if (result != Py_None) {
+    //  NOTE: Cache is not supported now
+    // Re-enable custom behavior
+    eval_frame_callback_set(callback);
+    // PyObject *args = Py_BuildValue("(O)", frame);
+    // result: types.CodeType
+    // return PyObject_CallObject(result, args);
+    return eval_frame_default(tstate, frame, throw_flag);
+  } else {
+    // Re-enable custom behavior
+    eval_frame_callback_set(callback);
+    return eval_frame_default(tstate, frame, throw_flag);
   }
-
-  //  NOTE: Cache is not supported now
-
-  // set callback back
-  eval_frame_callback_set(callback);
-  return result;
 }
 
 static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
