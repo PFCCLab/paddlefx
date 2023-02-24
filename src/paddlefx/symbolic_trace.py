@@ -1,4 +1,5 @@
 import paddle
+import paddle.nn
 
 from .graph import Graph
 from .node import Node

@@ -1,4 +1,5 @@
 import paddle
+import paddle.nn
 
 from paddlefx import symbolic_trace
 

@@ -1,26 +1,137 @@
 #include <Python.h>
-#include <stdio.h>
+#include <frameobject.h>
+#include <pystate.h>
 
-static PyObject *bar(PyObject *module, PyObject *args) {
-  printf("\ncall foo.bar\n");
-  Py_RETURN_NONE;
+// NOTE: This file is a simplified version of
+// https://github.com/pytorch/pytorch/blob/master/torch/csrc/dynamo/eval_frame.c
+// https://github.com/pytorch/torchdynamo/blob/1.13/torchdynamo/_eval_frame.c
+
+// see https://bugs.python.org/issue35886
+#if PY_VERSION_HEX >= 0x03080000
+#define Py_BUILD_CORE
+#include "internal/pycore_pystate.h"
+#undef Py_BUILD_CORE
+#endif
+
+#define DEBUG_TRACE0(msg)                                                      \
+  fprintf(stderr, "TRACE[%s:%d] " msg "\n", __func__, __LINE__)
+
+#define unlikely(x) __builtin_expect((x), 0)
+
+static Py_tss_t eval_frame_callback_key = Py_tss_NEEDS_INIT;
+
+inline static PyObject *eval_frame_callback_get(void) {
+  void *result = PyThread_tss_get(&eval_frame_callback_key);
+  if (unlikely(result == NULL)) {
+    Py_RETURN_NONE;
+  } else {
+    return (PyObject *)result;
+  }
 }
 
-static PyMethodDef foo_methods[] = {{
-                                        "bar",
-                                        bar,
-                                        METH_NOARGS,
-                                        "",
-                                    },
-                                    {
-                                        NULL,
-                                        NULL,
-                                    }};
+inline static void eval_frame_callback_set(PyObject *obj) {
+  PyThread_tss_set(&eval_frame_callback_key, obj);
+}
 
-static PyModuleDef _foomodule = {
+inline static PyObject *eval_frame_default(PyThreadState *tstate,
+                                           PyFrameObject *frame,
+                                           int throw_flag) {
+  return _PyEval_EvalFrameDefault(frame, throw_flag);
+}
+
+static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
+                                    int throw_flag, PyObject *callback) {
+  // TODO: why need this line?
+  // https://peps.python.org/pep-0558/#fast-locals-proxy-implementation-details
+  if (PyFrame_FastToLocalsWithError(frame) < 0) {
+    return NULL;
+  }
+
+  // We don't run the current custom_eval_frame behavior for guards.
+  // So we temporarily set the callback to Py_None to drive the correct behavior
+  // in the shim.
+  eval_frame_callback_set(Py_None);
+
+  PyObject *args = Py_BuildValue("(O)", frame);
+  PyObject *result = PyObject_CallObject(callback, args);
+  if (result == NULL) {
+    // internal exception
+    return NULL;
+  }
+
+  //  NOTE: Cache is not supported now
+
+  // set callback back
+  eval_frame_callback_set(callback);
+  return result;
+}
+
+static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
+                                         PyFrameObject *frame, int throw_flag) {
+  PyObject *callback = eval_frame_callback_get();
+
+  if (callback == Py_None) {
+    return eval_frame_default(tstate, frame, throw_flag);
+  }
+
+  return _custom_eval_frame(tstate, frame, throw_flag, callback);
+}
+
+static PyObject *custom_eval_frame_shim(PyFrameObject *frame, int throw_flag) {
+  PyThreadState *tstate = PyThreadState_GET();
+  return _custom_eval_frame_shim(tstate, frame, throw_flag);
+}
+
+static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
+  // Change the eval frame callback and return the old one
+  //  - None: disables Dynamo
+  //  - Python callable(): enables Dynamo
+  //  NOTE: Cache is not supported now
+  PyObject *old_callback = eval_frame_callback_get();
+
+  // NOTE: multi-threading is not supported now
+  if (old_callback != Py_None && new_callback == Py_None) {
+    if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
+      DEBUG_TRACE0("set _PyEval_EvalFrameDefault");
+      tstate->interp->eval_frame = &_PyEval_EvalFrameDefault;
+    }
+  } else if (old_callback == Py_None && new_callback != Py_None) {
+    if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
+      DEBUG_TRACE0("set custom_eval_frame_shim");
+      tstate->interp->eval_frame = &custom_eval_frame_shim;
+    }
+  }
+
+  Py_INCREF(new_callback);
+  eval_frame_callback_set(new_callback);
+
+  return old_callback;
+}
+
+static PyObject *set_eval_frame_py(PyObject *dummy, PyObject *args) {
+  PyObject *callback = NULL;
+  if (!PyArg_ParseTuple(args, "O:callback", &callback)) {
+    DEBUG_TRACE0("arg error");
+    return NULL;
+  }
+  if (callback != Py_None && callback != Py_False &&
+      !PyCallable_Check(callback)) {
+    DEBUG_TRACE0("arg error");
+    PyErr_SetString(PyExc_TypeError, "expected a callable");
+    return NULL;
+  }
+  return set_eval_frame(callback, PyThreadState_GET());
+}
+
+static PyMethodDef foo_methods[] = {
+    {"set_eval_frame", set_eval_frame_py, METH_VARARGS, NULL},
+    {NULL, NULL},
+};
+
+static PyModuleDef _module = {
     PyModuleDef_HEAD_INIT,
-    "foo",
-    "foo doc",
+    "_eval_frame",
+    "_eval_frame doc",
     -1,
     foo_methods,
     NULL,
@@ -29,4 +140,11 @@ static PyModuleDef _foomodule = {
     NULL,
 };
 
-PyMODINIT_FUNC PyInit__eval_frame(void) { return PyModule_Create(&_foomodule); }
+PyMODINIT_FUNC PyInit__eval_frame(void) {
+  int result = PyThread_tss_create(&eval_frame_callback_key);
+
+  Py_INCREF(Py_None);
+  eval_frame_callback_set(Py_None);
+
+  return PyModule_Create(&_module);
+}
