@@ -1,5 +1,7 @@
 #include <Python.h>
+#include <code.h>
 #include <frameobject.h>
+#include <object.h>
 #include <pystate.h>
 
 // NOTE: This file is a simplified version of
@@ -39,10 +41,54 @@ inline static PyObject *eval_frame_default(PyThreadState *tstate,
   return _PyEval_EvalFrameDefault(frame, throw_flag);
 }
 
+inline static PyObject *eval_custom_code(PyThreadState *tstate,
+                                         PyFrameObject *frame,
+                                         PyCodeObject *code, int throw_flag) {
+  Py_ssize_t ncells = 0;
+  Py_ssize_t nfrees = 0;
+  Py_ssize_t nlocals_new = code->co_nlocals;
+  Py_ssize_t nlocals_old = frame->f_code->co_nlocals;
+
+  if ((code->co_flags & CO_NOFREE) == 0) {
+    ncells = PyTuple_GET_SIZE(code->co_cellvars);
+    nfrees = PyTuple_GET_SIZE(code->co_freevars);
+  }
+
+  // DEBUG_NULL_CHECK(tstate);
+  // DEBUG_NULL_CHECK(frame);
+  // DEBUG_NULL_CHECK(code);
+  // DEBUG_CHECK(ncells == PyTuple_GET_SIZE(frame->f_code->co_cellvars));
+  // DEBUG_CHECK(nfrees == PyTuple_GET_SIZE(frame->f_code->co_freevars));
+  // DEBUG_CHECK(nlocals_new >= nlocals_old);
+
+  PyFrameObject *shadow = PyFrame_New(tstate, code, frame->f_globals, NULL);
+  if (shadow == NULL) {
+    return NULL;
+  }
+
+  PyObject **fastlocals_old = frame->f_localsplus;
+  PyObject **fastlocals_new = shadow->f_localsplus;
+
+  for (Py_ssize_t i = 0; i < nlocals_old; i++) {
+    Py_XINCREF(fastlocals_old[i]);
+    fastlocals_new[i] = fastlocals_old[i];
+  }
+
+  for (Py_ssize_t i = 0; i < ncells + nfrees; i++) {
+    Py_XINCREF(fastlocals_old[nlocals_old + i]);
+    fastlocals_new[nlocals_new + i] = fastlocals_old[nlocals_old + i];
+  }
+
+  PyObject *result = eval_frame_default(tstate, shadow, throw_flag);
+  Py_DECREF(shadow);
+  return result;
+}
+
 static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
                                     int throw_flag, PyObject *callback) {
   // TODO: why need this line?
   // https://peps.python.org/pep-0558/#fast-locals-proxy-implementation-details
+  // https://devguide.python.org/internals/interpreter/#all-sorts-of-variables
   if (PyFrame_FastToLocalsWithError(frame) < 0) {
     return NULL;
   }
@@ -54,16 +100,21 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, PyFrameObject *frame,
 
   PyObject *args = Py_BuildValue("(O)", frame);
   PyObject *result = PyObject_CallObject(callback, args);
+  // result: GuardedCode
   if (result == NULL) {
     // internal exception
     return NULL;
+  } else if (result != Py_None) {
+    //  NOTE: Cache is not supported now
+    PyCodeObject *code = (PyCodeObject *)PyObject_GetAttrString(result, "code");
+    // Re-enable custom behavior
+    eval_frame_callback_set(callback);
+    return eval_custom_code(tstate, frame, code, throw_flag);
+  } else {
+    // Re-enable custom behavior
+    eval_frame_callback_set(callback);
+    return eval_frame_default(tstate, frame, throw_flag);
   }
-
-  //  NOTE: Cache is not supported now
-
-  // set callback back
-  eval_frame_callback_set(callback);
-  return result;
 }
 
 static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
@@ -123,7 +174,7 @@ static PyObject *set_eval_frame_py(PyObject *dummy, PyObject *args) {
   return set_eval_frame(callback, PyThreadState_GET());
 }
 
-static PyMethodDef foo_methods[] = {
+static PyMethodDef _methods[] = {
     {"set_eval_frame", set_eval_frame_py, METH_VARARGS, NULL},
     {NULL, NULL},
 };
@@ -133,7 +184,7 @@ static PyModuleDef _module = {
     "_eval_frame",
     "_eval_frame doc",
     -1,
-    foo_methods,
+    _methods,
     NULL,
     NULL,
     NULL,
