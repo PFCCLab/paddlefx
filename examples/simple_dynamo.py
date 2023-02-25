@@ -116,7 +116,7 @@ def callback(frame: types.FrameType):
         return None
 
     print('enter callback')
-    # print(frame)
+    print(frame)
     print(dis.disassemble(frame.f_code))
     convert_frame(frame)
 
@@ -126,7 +126,7 @@ def callback(frame: types.FrameType):
 
 
 def add(a, b):
-    print('\tcall add')
+    # print('\tcall add')
     c = a + b
     return c
 
