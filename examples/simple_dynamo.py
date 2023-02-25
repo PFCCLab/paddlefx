@@ -1,16 +1,10 @@
-import dis
-import types
 import dataclasses
+import dis  # noqa
+import types
+
 import opcode  # noqa
 
 from paddlefx._eval_frame import set_eval_frame
-
-# a: types.CodeType = None
-# a.co_code
-# frame: types.FrameType = None
-
-# f_code: types.CodeType = None
-# f_code.co_filename
 
 
 @dataclasses.dataclass
@@ -25,7 +19,7 @@ def callback(frame: types.FrameType):
         return None
 
     print('enter callback')
-    print(frame)
+    # print(frame)
     # print(dis.disassemble(frame.f_code))
     f_code = frame.f_code
     g = GuardedCode(f_code)
@@ -34,13 +28,13 @@ def callback(frame: types.FrameType):
 
 
 def add(a, b):
-    print('call add')
+    print('\tcall add')
     c = a + b
     return c
 
 
 def func(a=1, b=3):
-    print('call func')
+    print('\tcall func')
     c = add(a, b)
     d = add(c, a)
     return d
