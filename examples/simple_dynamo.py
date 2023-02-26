@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import opcode  # noqa
 
+import paddlefx
+
 from paddlefx._eval_frame import set_eval_frame
 
 
@@ -48,14 +50,26 @@ def convert_instruction(i: dis.Instruction):
     )
 
 
+class OutputGraph:
+    def __init__(self):
+        super().__init__()
+        self.graph = paddlefx.Graph()
+
+    def create_node(self, *args, **kwargs):
+        self.graph.create_node(*args, **kwargs)
+
+
 class InstructionTranslatorBase:
     def __init__(
         self,
         instructions: List[Instruction],
+        output: OutputGraph,
     ):
         self.instructions: List[Instruction] = instructions
+        self.output = output
 
     def LOAD_GLOBAL(self, inst):
+        self.output.create_node('placeholder')
         pass
 
     def LOAD_CONST(self, inst):
@@ -71,6 +85,7 @@ class InstructionTranslatorBase:
         pass
 
     def LOAD_FAST(self, inst):
+        self.output.create_node('placeholder')
         pass
 
     def RETURN_VALUE(self, inst):
@@ -84,9 +99,9 @@ class InstructionTranslator(InstructionTranslatorBase):
     def __init__(
         self,
         instructions: List[Instruction],
-        frame,
+        frame: types.FrameType,
     ):
-        super().__init__(instructions)
+        super().__init__(instructions, OutputGraph())
         self.frame: types.FrameType = frame
 
     def step(self, inst: Instruction):
@@ -99,7 +114,7 @@ class InstructionTranslator(InstructionTranslatorBase):
             self.step(inst)
         # add output
 
-        print()
+        self.output.graph.print_tabular()
 
 
 def convert_frame(frame: types.FrameType):
