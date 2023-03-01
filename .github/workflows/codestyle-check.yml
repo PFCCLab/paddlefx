@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  install-and-build:
+  code-style-check:
     runs-on: ubuntu-latest
-    name: Install and build
+    name: CodeStyle Check
     steps:
       - name: Checkout
         uses: actions/checkout@v3
