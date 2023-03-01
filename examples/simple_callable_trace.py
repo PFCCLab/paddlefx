@@ -12,7 +12,7 @@ def net(x, y):
 
 # tracing a paddle layer
 graph = symbolic_trace(net)
-
+raise
 print("python IR:")
 graph.print_tabular()
 print("python code generated:")
