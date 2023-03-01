@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  install-and-build:
+    runs-on: ubuntu-latest
+    name: Install and build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          # Currently, we only support Python 3.8
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          pip install paddlepaddle==2.4.2
+          pip install -r requirements_dev.txt
+
+      - name: Build
+        run: |
+          pip install -e .
+
+      - name: Run unit tests
+        run: |
+          pytest
+
+      - name: Run examples
+        run: |
+          EXAMPLES="examples/*.py"
+          for example_file in $EXAMPLES
+          do
+              echo "=================================================="
+              echo "Processing $example_file file..."
+              echo "=================================================="
+              python $example_file || exit 1
+          done
