@@ -22,7 +22,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install paddlepaddle==2.4.2
           pip install -r requirements_dev.txt
 
       - name: Build
