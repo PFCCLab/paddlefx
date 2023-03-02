@@ -1,0 +1,29 @@
+name: CodeStyle Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  code-style-check:
+    runs-on: ubuntu-latest
+    name: CodeStyle Check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          # Currently, we only support Python 3.8
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements_dev.txt
+
+      - name: Run pre-commit
+        run: |
+          pre-commit run --all-files
