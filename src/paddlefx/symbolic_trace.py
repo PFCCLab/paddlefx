@@ -34,7 +34,7 @@ def _find_module(root, m):
         n, p = children_queue.pop(0)
         if m is p:
             return n
-        children_queue.extend((f"{n}_{k}", v) for k, v in p.named_children())
+        children_queue.extend((f"{n}.{k}", v) for k, v in p.named_children())
     raise NameError('module is not installed as a submodule')
 
 
@@ -212,8 +212,9 @@ class Tracer:
                 # Run original __call__ to trace the submodules
                 return orig_module_call(mod, *args, **kwargs)
             target = _find_module(root, mod)
+            name = target.replace('.', '_')
             ### change it to create proxy in proxy.py
-            return _create_proxy(self, 'call_module', target, args, kwargs, target)
+            return _create_proxy(self, 'call_module', target, args, kwargs, name)
 
         with _Patcher() as patcher:
             # step1: patch layer call
