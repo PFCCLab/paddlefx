@@ -1,51 +1,179 @@
+import builtins
+import functools
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
+
 import paddle
 import paddle.nn
 
 from .graph import Graph
-from .node import Node
+from .graph_layer import GraphLayer
+from .node import Node, base_types, map_aggregate
 from .proxy import Proxy, _create_proxy
+
+MODULES_TO_PATCH = (paddle, paddle.nn, paddle.nn.functional)
+LAYERS_EXCLUDE_TO_PATCH = (paddle.nn.Sequential,)
 
 
 # in pytorch, it's find a module
 # in paddle, it's find a layer
 def _find_module(root, m):
-    for n, p in root.named_children():
+    # BFS search the whole tree to find the submodule
+    children_queue = list(root.named_children())
+    while children_queue:
+        n, p = children_queue.pop(0)
         if m is p:
             return n
+        children_queue.extend((f"{n}.{k}", v) for k, v in p.named_children())
     raise NameError('module is not installed as a submodule')
+
+
+def _is_leaf_module(m) -> bool:
+    return m.__module__.startswith("paddle.nn") and not isinstance(
+        m, paddle.nn.Sequential
+    )
+
+
+class _PatchedFn(NamedTuple):
+    frame_dict: Any
+    fn_name: str
+    orig_fn: Any
+
+    def revert(self):
+        raise NotImplementedError()
+
+
+class _PatchedFnSetItem(_PatchedFn):
+    def revert(self):
+        self.frame_dict[self.fn_name] = self.orig_fn
+
+
+class _PatchedFnDel(_PatchedFn):
+    def revert(self):
+        del self.frame_dict[self.fn_name]
+
+
+class _PatchedFnSetAttr(_PatchedFn):
+    def revert(self):
+        setattr(self.frame_dict, self.fn_name, self.orig_fn)
+
+
+class _Patcher:
+    def __init__(self):
+        super().__init__()
+        self.patches_made = []
+        self.visited = set()
+
+    def patch(
+        self,
+        frame_dict,
+        name,
+        new_fn,
+        deduplicate: bool = True,
+    ):
+        """Replace frame_dict[name] with new_fn until we exit the context manager."""
+        new_fn.__fx_already_patched = deduplicate  # type: ignore[attr-defined]
+        if name not in frame_dict and hasattr(builtins, name):
+            self.patches_made.append(_PatchedFnDel(frame_dict, name, None))
+        elif getattr(frame_dict[name], "__fx_already_patched", False):
+            return  # already patched, no need to do it again
+        else:
+            self.patches_made.append(
+                _PatchedFnSetItem(frame_dict, name, frame_dict[name])
+            )
+        frame_dict[name] = new_fn
+
+    def patch_method(
+        self, cls: type, name: str, new_fn: Callable, deduplicate: bool = True
+    ):
+        """Replace object_or_dict.name with new_fn until we exit the context manager."""
+        new_fn.__fx_already_patched = deduplicate  # type: ignore[attr-defined]
+        orig_fn = getattr(cls, name)
+        if getattr(orig_fn, "__fx_already_patched", False):
+            return  # already patched, no need to do it again
+        self.patches_made.append(_PatchedFnSetAttr(cls, name, orig_fn))
+        setattr(cls, name, new_fn)
+
+    def visit_once(self, thing: Any):
+        """Return True on the first call to with thing, otherwise false."""
+        idx = id(thing)
+        if idx in self.visited:
+            return False
+        self.visited.add(idx)
+        return True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Undo all the changes made via self.patch() and self.patch_method()"""
+        while self.patches_made:
+            # unpatch in reverse order to handle duplicates correctly
+            self.patches_made.pop().revert()
+        self.visited.clear()
+
+
+def _find_proxy(*objects_to_search):
+    """Recursively search a data structure for a Proxy() and return it,
+    return None if not found."""
+    proxy = None
+
+    def find_proxy(x):
+        nonlocal proxy
+        if isinstance(x, Proxy):
+            proxy = x
+
+    # find the first proxy in the args/kwargs
+    map_aggregate(objects_to_search, find_proxy)
+    return proxy
+
+
+def _create_wrapped_func(orig_fn):
+    @functools.wraps(orig_fn)
+    def wrapped(*args, **kwargs):
+        """Given an closed-over ``orig_function`` to invoke, search the args and kwargs for
+        a Proxy object.
+
+        If there is one, emit a ``call_function`` node to preserve the call to this
+        leaf function directly. Otherwise, just return the results of this function
+        call, as this function is not being traced.
+        """
+        proxy = _find_proxy(args, kwargs)
+        if proxy is not None:
+            return_proxy = _create_proxy(
+                proxy.tracer, 'call_function', orig_fn, args, kwargs, orig_fn.__name__
+            )
+            return return_proxy
+        return orig_fn(*args, **kwargs)
+
+    return wrapped
+
+
+def _autowrap_check(patcher: _Patcher, frame_dict: Dict[str, Any]):
+    if patcher.visit_once(frame_dict):
+        for name, value in frame_dict.items():
+            if (
+                not name.startswith("_")
+                and callable(value)
+                and value not in LAYERS_EXCLUDE_TO_PATCH
+            ):
+                patcher.patch(frame_dict, name, _create_wrapped_func(value))
 
 
 class Tracer:
     def __init__(self):
         self.graph = Graph()
-
-    # For now, we only monkey patch addle.add, paddle.nn.functional.relu
-    # TODO: We'll need a solution to patch all related paddle functions.
-    def _monkey_patch_paddle_functions(self):
-        # monkey patch paddle.add to create a proxy for it
-        orig_add_call = paddle.add
-
-        def paddle_add_wrapper(*args, **kwargs):
-            return _create_proxy(
-                self, 'call_function', orig_add_call, args, kwargs, 'add'
-            )
-
-        # monkey patch paddle.nn.functional.relu to create a proxy for it
-        orig_relu_call = paddle.nn.functional.relu
-
-        def paddle_relu_wrapper(*args, **kwargs):
-            return _create_proxy(
-                self, 'call_function', orig_relu_call, args, kwargs, 'relu'
-            )
-
-        paddle.add = paddle_add_wrapper
-        paddle.nn.functional.relu = paddle_relu_wrapper
-
-        return orig_add_call, orig_relu_call
-
-    def _release_paddle_functions(self, orig_add_call, orig_relu_call):
-        paddle.add = orig_add_call
-        paddle.nn.functional.relu = orig_relu_call
 
     def trace(self, root) -> Graph:
         is_layer = isinstance(root, paddle.nn.Layer)
@@ -81,19 +209,26 @@ class Tracer:
         orig_module_call = paddle.nn.Layer.__call__
 
         def module_call_wrapper(mod, *args, **kwargs):
+            if not _is_leaf_module(mod):
+                # Run original __call__ to trace the submodules
+                return orig_module_call(mod, *args, **kwargs)
             target = _find_module(root, mod)
+            name = target.replace('.', '_')
             ### change it to create proxy in proxy.py
-            return _create_proxy(self, 'call_module', target, args, kwargs, target)
+            return _create_proxy(self, 'call_module', target, args, kwargs, name)
 
-        try:
-            orig_add_call, orig_relu_call = self._monkey_patch_paddle_functions()
-            paddle.nn.Layer.__call__ = module_call_wrapper
+        with _Patcher() as patcher:
+            # step1: patch layer call
+            patcher.patch_method(
+                paddle.nn.Layer, "__call__", module_call_wrapper, deduplicate=False
+            )
+            # step2: patch paddle functions
+            for module in MODULES_TO_PATCH:
+                _autowrap_check(patcher, module.__dict__)
+            # step3: trace it!
             self.graph.output(self.create_arg(fn(*args)))
-        finally:
-            self._release_paddle_functions(orig_add_call, orig_relu_call)
-            paddle.nn.Layer.__call__ = orig_module_call
 
-        return self.graph
+        return GraphLayer(root, self.graph)
 
     def _proxy_placeholder(self, name):
         n = self.graph.create_node('placeholder', name, (), {})
@@ -122,6 +257,8 @@ class Tracer:
         if isinstance(a, Proxy):
             # base case: we unwrap the Proxy object
             return a.node
+        elif isinstance(a, base_types) or a is None or a is ...:
+            return a
         raise NotImplementedError(f"argument of type: {type(a)}")
 
 

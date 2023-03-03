@@ -38,7 +38,14 @@ inline static void eval_frame_callback_set(PyObject *obj) {
 inline static PyObject *eval_frame_default(PyThreadState *tstate,
                                            PyFrameObject *frame,
                                            int throw_flag) {
+#if PY_VERSION_HEX >= 0x03090000
+  if (tstate == NULL) {
+    tstate = PyThreadState_GET();
+  }
+  return _PyEval_EvalFrameDefault(tstate, frame, throw_flag);
+#else
   return _PyEval_EvalFrameDefault(frame, throw_flag);
+#endif
 }
 
 inline static PyObject *eval_custom_code(PyThreadState *tstate,
@@ -128,10 +135,17 @@ static PyObject *_custom_eval_frame_shim(PyThreadState *tstate,
   return _custom_eval_frame(tstate, frame, throw_flag, callback);
 }
 
+#if PY_VERSION_HEX >= 0x03090000
+static PyObject *custom_eval_frame_shim(PyThreadState *tstate,
+                                        PyFrameObject *frame, int throw_flag) {
+  return _custom_eval_frame_shim(tstate, frame, throw_flag);
+}
+#else
 static PyObject *custom_eval_frame_shim(PyFrameObject *frame, int throw_flag) {
   PyThreadState *tstate = PyThreadState_GET();
   return _custom_eval_frame_shim(tstate, frame, throw_flag);
 }
+#endif
 
 static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
   // Change the eval frame callback and return the old one
@@ -140,16 +154,32 @@ static PyObject *set_eval_frame(PyObject *new_callback, PyThreadState *tstate) {
   //  NOTE: Cache is not supported now
   PyObject *old_callback = eval_frame_callback_get();
 
+#if PY_VERSION_HEX >= 0x03090000
+  void *old_eval_frame = _PyInterpreterState_GetEvalFrameFunc(tstate->interp);
+#else
+  void *old_eval_frame = tstate->interp->eval_frame;
+#endif
+
   // NOTE: multi-threading is not supported now
   if (old_callback != Py_None && new_callback == Py_None) {
-    if (tstate->interp->eval_frame != &_PyEval_EvalFrameDefault) {
+    if (old_eval_frame != &_PyEval_EvalFrameDefault) {
       DEBUG_TRACE0("set _PyEval_EvalFrameDefault");
+#if PY_VERSION_HEX >= 0x03090000
+      _PyInterpreterState_SetEvalFrameFunc(tstate->interp,
+                                           &_PyEval_EvalFrameDefault);
+#else
       tstate->interp->eval_frame = &_PyEval_EvalFrameDefault;
+#endif
     }
   } else if (old_callback == Py_None && new_callback != Py_None) {
-    if (tstate->interp->eval_frame != &custom_eval_frame_shim) {
+    if (old_eval_frame != &custom_eval_frame_shim) {
       DEBUG_TRACE0("set custom_eval_frame_shim");
+#if PY_VERSION_HEX >= 0x03090000
+      _PyInterpreterState_SetEvalFrameFunc(tstate->interp,
+                                           &custom_eval_frame_shim);
+#else
       tstate->interp->eval_frame = &custom_eval_frame_shim;
+#endif
     }
   }
 
