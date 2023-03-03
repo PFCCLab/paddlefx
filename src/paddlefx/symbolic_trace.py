@@ -18,6 +18,7 @@ import paddle
 import paddle.nn
 
 from .graph import Graph
+from .graph_layer import GraphLayer
 from .node import Node, base_types, map_aggregate
 from .proxy import Proxy, _create_proxy
 
@@ -227,7 +228,7 @@ class Tracer:
             # step3: trace it!
             self.graph.output(self.create_arg(fn(*args)))
 
-        return self.graph
+        return GraphLayer(root, self.graph)
 
     def _proxy_placeholder(self, name):
         n = self.graph.create_node('placeholder', name, (), {})

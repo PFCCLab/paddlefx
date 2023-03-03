@@ -20,12 +20,13 @@ class MyNet(paddle.nn.Layer):
 
 
 net = MyNet()
+traced_layer = symbolic_trace(net)
 
-# tracing a paddle layer
-graph = symbolic_trace(net)
+example_input = paddle.rand([2, 10])
+orig_output = net(example_input)
+traced_output = traced_layer(example_input)
 
-print("python IR:")
-graph.print_tabular()
-print("python code generated:")
-src, _ = graph.python_code(root_module='self')
-print(src)
+assert paddle.allclose(orig_output, traced_output)
+
+print(f"python IR for {type(net).__name__}")
+traced_layer.graph.print_tabular()
