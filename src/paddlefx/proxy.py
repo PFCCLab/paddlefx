@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 import operator
+import typing
+
+if typing.TYPE_CHECKING:
+    from .node import Node
+    from .symbolic_trace import Tracer
 
 
 # Unwrap the proxies inside args, and kwargs, create the resulting node
 # and then wrap the result in a proxy.
-def _create_proxy(tracer, op, target, args_, kwargs_, name=None):
+def _create_proxy(tracer: Tracer, op, target, args_, kwargs_, name=None):
     args = tracer.create_arg(args_)
     kwargs = tracer.create_arg(kwargs_)
     assert isinstance(args, tuple)
@@ -13,7 +20,7 @@ def _create_proxy(tracer, op, target, args_, kwargs_, name=None):
 
 
 class Proxy:
-    def __init__(self, node, tracer):
+    def __init__(self, node: Node, tracer: Tracer):
         self.node = node
         self.tracer = tracer
 
