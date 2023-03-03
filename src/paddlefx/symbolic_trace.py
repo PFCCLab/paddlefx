@@ -22,15 +22,26 @@ from .node import Node, base_types, map_aggregate
 from .proxy import Proxy, _create_proxy
 
 MODULES_TO_PATCH = (paddle, paddle.nn, paddle.nn.functional)
+LAYERS_EXCLUDE_TO_PATCH = (paddle.nn.Sequential,)
 
 
 # in pytorch, it's find a module
 # in paddle, it's find a layer
 def _find_module(root, m):
-    for n, p in root.named_children():
+    # BFS search the whole tree to find the submodule
+    children_queue = list(root.named_children())
+    while children_queue:
+        n, p = children_queue.pop(0)
         if m is p:
             return n
+        children_queue.extend((f"{n}.{k}", v) for k, v in p.named_children())
     raise NameError('module is not installed as a submodule')
+
+
+def _is_leaf_module(m) -> bool:
+    return m.__module__.startswith("paddle.nn") and not isinstance(
+        m, paddle.nn.Sequential
+    )
 
 
 class _PatchedFn(NamedTuple):
@@ -151,7 +162,11 @@ def _create_wrapped_func(orig_fn):
 def _autowrap_check(patcher: _Patcher, frame_dict: Dict[str, Any]):
     if patcher.visit_once(frame_dict):
         for name, value in frame_dict.items():
-            if not name.startswith("_") and callable(value):
+            if (
+                not name.startswith("_")
+                and callable(value)
+                and value not in LAYERS_EXCLUDE_TO_PATCH
+            ):
                 patcher.patch(frame_dict, name, _create_wrapped_func(value))
 
 
@@ -193,9 +208,13 @@ class Tracer:
         orig_module_call = paddle.nn.Layer.__call__
 
         def module_call_wrapper(mod, *args, **kwargs):
+            if not _is_leaf_module(mod):
+                # Run original __call__ to trace the submodules
+                return orig_module_call(mod, *args, **kwargs)
             target = _find_module(root, mod)
+            name = target.replace('.', '_')
             ### change it to create proxy in proxy.py
-            return _create_proxy(self, 'call_module', target, args, kwargs, target)
+            return _create_proxy(self, 'call_module', target, args, kwargs, name)
 
         with _Patcher() as patcher:
             # step1: patch layer call
