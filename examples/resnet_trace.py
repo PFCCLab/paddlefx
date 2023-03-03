@@ -4,19 +4,16 @@ import paddle.nn
 from paddle.vision.models import resnet18
 
 from paddlefx import symbolic_trace
+from paddlefx.graph_layer import GraphLayer
 
 net = resnet18()
+traced_layer = symbolic_trace(net)
 
-# tracing a paddle layer
-graph = symbolic_trace(net)
+example_input = paddle.rand([2, 3, 224, 224])
+orig_output = net(example_input)
+traced_output = traced_layer(example_input)
 
-print("python IR:")
-graph.print_tabular()
-print("python code generated:")
-src, _ = graph.python_code(root_module='self')
-print(src)
+assert paddle.allclose(orig_output, traced_output)
 
-# TODO: need to implement GraphModule (or GraphLayer to align with paddle.nn.Layer),
-# then, validate the traced net is correct by
-# comparing the output of traced net and original net
-# x = paddle.rand([1, 3, 224, 224])
+print(f"python IR for {type(net).__name__}")
+traced_layer.graph.print_tabular()

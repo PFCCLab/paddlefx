@@ -10,11 +10,15 @@ def net(x, y):
     return paddle.nn.functional.relu(x=x)
 
 
-# tracing a paddle layer
-graph = symbolic_trace(net)
+traced_layer = symbolic_trace(net)
 
-print("python IR:")
-graph.print_tabular()
-print("python code generated:")
-src, _ = graph.python_code(root_module='self')
-print(src)
+example_input_x = paddle.rand([3, 4])
+example_input_y = paddle.rand([3, 4])
+
+orig_output = net(example_input_x, example_input_y)
+traced_output = traced_layer(example_input_x, example_input_y)
+
+assert paddle.allclose(orig_output, traced_output)
+
+print(f"python IR for {net.__name__}")
+traced_layer.graph.print_tabular()
