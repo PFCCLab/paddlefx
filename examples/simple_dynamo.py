@@ -1,5 +1,6 @@
 import dataclasses
 import dis
+import operator
 import types
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -55,21 +56,25 @@ class OutputGraph:
         super().__init__()
         self.graph = paddlefx.Graph()
 
-    def create_node(self, *args, **kwargs):
-        self.graph.create_node(*args, **kwargs)
-
 
 class InstructionTranslatorBase:
     def __init__(
         self,
         instructions: List[Instruction],
+        frame: types.FrameType,
         output: OutputGraph,
     ):
         self.instructions: List[Instruction] = instructions
+        self.frame: types.FrameType = frame
         self.output = output
 
+        self.f_locals = {}
+        self.stack = []
+        for k, v in frame.f_locals.items():
+            node = self.output.graph.placeholder(k)
+            self.f_locals[k] = node
+
     def LOAD_GLOBAL(self, inst):
-        self.output.create_node('placeholder')
         pass
 
     def LOAD_CONST(self, inst):
@@ -82,17 +87,19 @@ class InstructionTranslatorBase:
         pass
 
     def STORE_FAST(self, inst):
-        pass
+        self.f_locals[inst.argval] = self.stack.pop()
 
     def LOAD_FAST(self, inst):
-        self.output.create_node('placeholder')
-        pass
+        self.stack.append(self.f_locals[inst.argval])
 
-    def RETURN_VALUE(self, inst):
-        pass
+    def RETURN_VALUE(self, inst: Instruction):
+        self.output.graph.output(inst.target)
 
     def BINARY_ADD(self, inst):
-        pass
+        add = getattr(operator, 'add')
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.graph.create_node('call_function', add, 'add', args)
+        self.stack.append(res)
 
 
 class InstructionTranslator(InstructionTranslatorBase):
@@ -101,8 +108,7 @@ class InstructionTranslator(InstructionTranslatorBase):
         instructions: List[Instruction],
         frame: types.FrameType,
     ):
-        super().__init__(instructions, OutputGraph())
-        self.frame: types.FrameType = frame
+        super().__init__(instructions, frame, OutputGraph())
 
     def step(self, inst: Instruction):
         if not hasattr(self, inst.opname):
