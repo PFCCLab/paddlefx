@@ -118,7 +118,6 @@ class InstructionTranslator(InstructionTranslatorBase):
     def run(self):
         for inst in self.instructions:
             self.step(inst)
-        # add output
 
         self.output.graph.print_tabular()
 
