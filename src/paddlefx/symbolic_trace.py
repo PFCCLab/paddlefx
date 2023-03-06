@@ -175,7 +175,7 @@ class Tracer:
     def __init__(self):
         self.graph = Graph()
 
-    def trace(self, root) -> Graph:
+    def trace(self, root) -> GraphLayer:
         is_layer = isinstance(root, paddle.nn.Layer)
         if is_layer:
             fn = type(root).forward
@@ -262,6 +262,6 @@ class Tracer:
         raise NotImplementedError(f"argument of type: {type(a)}")
 
 
-def symbolic_trace(root):
+def symbolic_trace(root) -> GraphLayer:
     tracer = Tracer()
     return tracer.trace(root)

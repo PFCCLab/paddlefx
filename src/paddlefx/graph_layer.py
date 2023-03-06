@@ -3,6 +3,8 @@ import linecache
 
 import paddle
 
+from paddlefx import Graph
+
 # normal exec loses the source code, however we can patch
 # the linecache module to still recover it.
 # using exec_with_source will add it to our local cache
@@ -44,7 +46,7 @@ class GraphLayer(paddle.nn.Layer):
 
         return super().__new__(GraphLayerImpl)
 
-    def __init__(self, root, graph):
+    def __init__(self, root, graph: Graph):
         super().__init__()
         self.root = root
         self.graph = graph
