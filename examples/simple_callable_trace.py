@@ -7,7 +7,8 @@ def net(x, y):
     x = x * x
     x = x + y
     x = paddle.add(x=x, y=x)
-    return paddle.nn.functional.relu(x=x)
+    z = x.add(y)
+    return paddle.nn.functional.relu(x=z)
 
 
 traced_layer = symbolic_trace(net)
