@@ -66,7 +66,7 @@ class InstructionTranslatorBase:
     ):
         self.instructions: List[Instruction] = instructions
         self.frame: types.FrameType = frame
-        self.output = output
+        self.output: OutputGraph = output
 
         self.f_locals = {}
         self.stack = []
@@ -74,28 +74,35 @@ class InstructionTranslatorBase:
             node = self.output.graph.placeholder(k)
             self.f_locals[k] = node
 
-    def LOAD_GLOBAL(self, inst):
+    def compile_subgraph(self):
+        # add output node
+        stack_values = list(self.stack)
+        self.output.graph.create_node('output', 'output', stack_values)
+
+        self.output.graph.print_tabular()
+
+    def LOAD_GLOBAL(self, inst: Instruction):
         pass
 
-    def LOAD_CONST(self, inst):
+    def LOAD_CONST(self, inst: Instruction):
         pass
 
-    def CALL_FUNCTION(self, inst):
+    def CALL_FUNCTION(self, inst: Instruction):
         pass
 
-    def POP_TOP(self, inst):
+    def POP_TOP(self, inst: Instruction):
         pass
 
-    def STORE_FAST(self, inst):
+    def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()
 
-    def LOAD_FAST(self, inst):
+    def LOAD_FAST(self, inst: Instruction):
         self.stack.append(self.f_locals[inst.argval])
 
     def RETURN_VALUE(self, inst: Instruction):
-        self.output.graph.output(inst.target)
+        self.compile_subgraph()
 
-    def BINARY_ADD(self, inst):
+    def BINARY_ADD(self, inst: Instruction):
         add = getattr(operator, 'add')
         args = list(reversed([self.stack.pop() for _ in range(2)]))
         res = self.output.graph.create_node('call_function', add, 'add', args)
@@ -118,8 +125,6 @@ class InstructionTranslator(InstructionTranslatorBase):
     def run(self):
         for inst in self.instructions:
             self.step(inst)
-
-        self.output.graph.print_tabular()
 
 
 def convert_frame(frame: types.FrameType):
