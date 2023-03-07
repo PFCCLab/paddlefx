@@ -7,8 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import opcode  # noqa
 
-import paddlefx
-
+from paddlefx import Proxy, Tracer
 from paddlefx._eval_frame import set_eval_frame
 
 
@@ -51,10 +50,9 @@ def convert_instruction(i: dis.Instruction):
     )
 
 
-class OutputGraph:
+class OutputGraph(Tracer):
     def __init__(self):
         super().__init__()
-        self.graph = paddlefx.Graph()
 
 
 class InstructionTranslatorBase:
@@ -71,13 +69,12 @@ class InstructionTranslatorBase:
         self.f_locals = {}
         self.stack = []
         for k, v in frame.f_locals.items():
-            node = self.output.graph.placeholder(k)
-            self.f_locals[k] = node
+            self.f_locals[k] = self.output._proxy_placeholder(k)
 
     def compile_subgraph(self):
         # add output node
         stack_values = list(self.stack)
-        self.output.graph.create_node('output', 'output', stack_values)
+        self.output.create_node('output', 'output', stack_values, {})
 
         self.output.graph.print_tabular()
 
@@ -105,7 +102,7 @@ class InstructionTranslatorBase:
     def BINARY_ADD(self, inst: Instruction):
         add = getattr(operator, 'add')
         args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.graph.create_node('call_function', add, 'add', args)
+        res = self.output.create_node('call_function', add, args, {})
         self.stack.append(res)
 
 
