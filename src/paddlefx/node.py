@@ -43,3 +43,12 @@ def map_aggregate(a, fn):
         )
     else:
         return fn(a)
+
+
+def map_arg(a: Any, fn: Callable[[Node], Any]) -> Any:
+    """Apply fn to each Node appearing arg.
+
+    arg may be a list, tuple, slice, or dict with string keys.
+    """
+    assert callable(fn), "torch.fx.map_arg(a, fn): fn must be a callable"
+    return map_aggregate(a, lambda x: fn(x) if isinstance(x, Node) else x)
