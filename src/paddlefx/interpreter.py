@@ -103,15 +103,11 @@ class Interpreter:
         assert isinstance(target, str)
         return self.fetch_attr(target)
 
-    def call_function(
-        self, target: 'Target', args: Tuple, kwargs: Dict[str, Any]
-    ) -> Any:
+    def call_function(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
         """Execute a ``call_function`` node and return the result.
 
         Args:
-            target (Target): The call target for this node. See
-                `Node <https://pytorch.org/docs/master/fx.html#torch.fx.Node>`__ for
-                details on semantics
+            target (Target): The call target for this node.
             args (Tuple): Tuple of positional args for this invocation
             kwargs (Dict): Dict of keyword arguments for this invocation
 
@@ -123,13 +119,11 @@ class Interpreter:
         # Execute the function and return the result
         return target(*args, **kwargs)
 
-    def call_method(self, target: 'Target', args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_method(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
         """Execute a ``call_method`` node and return the result.
 
         Args:
-            target (Target): The call target for this node. See
-                `Node <https://pytorch.org/docs/master/fx.html#torch.fx.Node>`__ for
-                details on semantics
+            target (Target): The call target for this node.
             args (Tuple): Tuple of positional args for this invocation
             kwargs (Dict): Dict of keyword arguments for this invocation
 
@@ -147,9 +141,7 @@ class Interpreter:
         """Execute a ``call_module`` node and return the result.
 
         Args:
-            target (Target): The call target for this node. See
-                `Node <https://pytorch.org/docs/master/fx.html#torch.fx.Node>`__ for
-                details on semantics
+            target (Target): The call target for this node.
             args (Tuple): Tuple of positional args for this invocation
             kwargs (Dict): Dict of keyword arguments for this invocation
 
@@ -169,9 +161,7 @@ class Interpreter:
         the value referenced by the ``output`` node and returns it.
 
         Args:
-            target (Target): The call target for this node. See
-                `Node <https://pytorch.org/docs/master/fx.html#torch.fx.Node>`__ for
-                details on semantics
+            target (Target): The call target for this node.
             args (Tuple): Tuple of positional args for this invocation
             kwargs (Dict): Dict of keyword arguments for this invocation
 
