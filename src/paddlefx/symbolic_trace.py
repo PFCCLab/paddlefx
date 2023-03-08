@@ -152,7 +152,7 @@ def _create_wrapped_func(orig_fn):
         proxy = _find_proxy(args, kwargs)
         if proxy is not None:
             return_proxy = _create_proxy(
-                proxy.tracer, 'call_function', orig_fn, args, kwargs, orig_fn.__name__
+                proxy.tracer, 'call_function', orig_fn, args, kwargs
             )
             return return_proxy
         return orig_fn(*args, **kwargs)

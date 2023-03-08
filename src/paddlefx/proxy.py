@@ -96,7 +96,7 @@ for method in magic_methods:
         def impl(*args, **kwargs):
             tracer = args[0].tracer
             target = getattr(operator, method)
-            return _create_proxy(tracer, 'call_function', target, args, kwargs, method)
+            return _create_proxy(tracer, 'call_function', target, args, kwargs)
 
         impl.__name__ = method
         as_magic = f'__{method}__'

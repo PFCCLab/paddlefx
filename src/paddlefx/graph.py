@@ -108,7 +108,7 @@ class Graph:
         return n
 
     def output(self, result):
-        return self.create_node(op='output', target='output', args=(result,))
+        return self.create_node(op='output', target='output', args=result)
 
     def _name(self, op):
         if hasattr(op, '__name__'):
