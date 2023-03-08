@@ -24,6 +24,10 @@ known_first_party = ["paddlefx"]
 minversion = "7.0.0"
 pythonpath = "tests"
 testpaths = ["tests"]
+filterwarnings = [
+    # Ignore warnings raised by paddlepaddle 2.4
+    "ignore::DeprecationWarning",
+]
 
 [tool.setuptools_scm]
 write_to = "src/paddlefx/_version.py"
