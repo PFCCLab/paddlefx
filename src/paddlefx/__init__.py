@@ -7,6 +7,7 @@ except ImportError:
 
 
 from .graph import Graph
+from .interpreter import Interpreter as Interpreter
 from .node import Node
 from .proxy import Proxy
 from .symbolic_trace import Tracer, symbolic_trace

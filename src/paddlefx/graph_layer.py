@@ -49,6 +49,16 @@ class GraphLayer(paddle.nn.Layer):
     def __init__(self, root, graph: Graph):
         super().__init__()
         self.root = root
+        if isinstance(root, paddle.nn.Layer):
+            if hasattr(root, 'training'):
+                self.training = root.training
+            for node in graph.nodes:
+                if node.op in ['get_attr', 'call_module']:
+                    assert isinstance(node.target, str)
+                    _copy_attr(root, self, node.target)
+        else:
+            raise RuntimeError('Unsupported type ' + str(root) + ' passed for root!')
+
         self.graph = graph
         self._generate_forward()
 
@@ -69,3 +79,31 @@ def forward(self, {', '.join(free_variables)}):
         cls = type(self)
         for k, v in gbls.items():
             setattr(cls, k, v)
+
+
+# copy an attribute value with qualified name 'target' from 'from_module' to 'to_module'
+# This installs empty Modules where none exist yet if they are subpaths of target
+def _copy_attr(from_module: paddle.nn.Layer, to_module: paddle.nn.Layer, target: str):
+    *prefix, field = target.split('.')
+    for item in prefix:
+        f = getattr(from_module, item)
+        t = getattr(to_module, item, None)
+        if f is t:
+            # we have already installed one of its parents
+            # (e.g. target = root.linear.weight, but we have already installed root.linear)
+            # once we install a parent, we no longer need to copy the children
+            # since all the needed properties will already be present
+            return
+
+        if t is None:
+            t = paddle.nn.Layer()
+            setattr(to_module, item, t)
+        from_module, to_module = f, t
+
+    orig = getattr(from_module, field)
+    # If it is a tensor and not a parameter attribute of a module, it should be a named buffer.
+    # So, we register it as a named buffer in the target module.
+    if isinstance(orig, paddle.Tensor) and not isinstance(orig, paddle.nn.Layer):
+        to_module.register_buffer(field, orig)
+    else:
+        setattr(to_module, field, orig)
