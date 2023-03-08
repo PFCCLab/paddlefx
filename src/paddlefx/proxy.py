@@ -3,6 +3,8 @@ from __future__ import annotations
 import operator
 import typing
 
+from typing import Any, Callable, Dict, Iterable, Iterator, Optional, OrderedDict, Tuple
+
 if typing.TYPE_CHECKING:
     from .node import Node
     from .symbolic_trace import Tracer
@@ -26,6 +28,34 @@ class Proxy:
 
     def __repr__(self):
         return f'Proxy({self.node.name})'
+
+    def __getattr__(self, k):
+        # note: not added to the graph yet, if this is a method call
+        # we peephole optimize to the method invocation
+        return Attribute(self, k)
+
+
+class Attribute(Proxy):
+    def __init__(self, root: Proxy, attr: str):
+        self.root = root
+        self.attr = attr
+        self.tracer = root.tracer
+        self._node: Optional[Node] = None
+
+    @property
+    def node(self):
+        # the node for attributes is added lazily, since most will just be method calls
+        # which do not rely on the getitem call
+        if self._node is None:
+            self._node = _create_proxy(
+                self.tracer, 'call_function', getattr, (self.root, self.attr), {}
+            ).node
+        return self._node
+
+    def __call__(self, *args, **kwargs):
+        return _create_proxy(
+            self.tracer, 'call_method', self.attr, (self.root,) + args, kwargs
+        )
 
 
 reflectable_magic_methods = {
