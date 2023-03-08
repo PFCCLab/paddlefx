@@ -11,8 +11,7 @@ class TestFx(unittest.TestCase):
         self.models_to_track = [
             (paddle.vision.models.resnet18(), paddle.randn([2, 3, 224, 224])),
             (paddle.vision.models.alexnet(), paddle.randn([2, 3, 224, 224])),
-            # DenseNet will fail, since it calls into _C_ops
-            # (paddle.vision.models.densenet121(), paddle.randn([2, 3, 224, 224])),
+            (paddle.vision.models.densenet121(), paddle.randn([2, 3, 224, 224])),
             (paddle.vision.models.googlenet(), paddle.randn([2, 3, 224, 224])),
             (paddle.vision.models.inception_v3(), paddle.randn([2, 3, 299, 299])),
             (paddle.vision.models.mobilenet_v2(), paddle.randn([2, 3, 224, 224])),

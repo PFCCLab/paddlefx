@@ -142,6 +142,8 @@ class Graph:
         for node in self.nodes:
             if node.op == 'placeholder':
                 free_vars.append(node.target)
+                if node.target != node.name:
+                    body.append(f'{node.name} = {node.target}\n')
                 continue
             elif node.op == 'call_method':
                 body.append(
