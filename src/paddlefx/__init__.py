@@ -7,6 +7,7 @@ except ImportError:
 
 
 from .graph import Graph
+from .graph_layer import GraphLayer
 from .interpreter import Interpreter as Interpreter
 from .node import Node
 from .proxy import Proxy

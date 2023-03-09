@@ -3,11 +3,12 @@ import dis
 import operator
 import types
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import opcode  # noqa
+import paddle
+import paddle.nn
 
-from paddlefx import Proxy, Tracer
+from paddlefx import GraphLayer, Tracer
 from paddlefx._eval_frame import set_eval_frame
 
 
@@ -60,10 +61,12 @@ class InstructionTranslatorBase:
         self,
         instructions: List[Instruction],
         frame: types.FrameType,
+        compiler_fn: Any,
         output: OutputGraph,
     ):
         self.instructions: List[Instruction] = instructions
         self.frame: types.FrameType = frame
+        self.compiler_fn = compiler_fn
         self.output: OutputGraph = output
 
         self.f_locals = {}
@@ -71,12 +74,17 @@ class InstructionTranslatorBase:
         for k, v in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
 
+    def call_user_compiler(self, gm):
+        compiled_fn = self.compiler_fn(gm, None)
+        return compiled_fn
+
     def compile_subgraph(self):
         # add output node
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
 
-        self.output.graph.print_tabular()
+        gm = GraphLayer(paddle.nn.Layer(), self.output.graph)
+        self.call_user_compiler(gm)
 
     def LOAD_GLOBAL(self, inst: Instruction):
         pass
@@ -111,8 +119,9 @@ class InstructionTranslator(InstructionTranslatorBase):
         self,
         instructions: List[Instruction],
         frame: types.FrameType,
+        compiler_fn: Any,
     ):
-        super().__init__(instructions, frame, OutputGraph())
+        super().__init__(instructions, frame, compiler_fn, OutputGraph())
 
     def step(self, inst: Instruction):
         if not hasattr(self, inst.opname):
@@ -124,35 +133,77 @@ class InstructionTranslator(InstructionTranslatorBase):
             self.step(inst)
 
 
-def convert_frame(frame: types.FrameType):
-    code = frame.f_code
-    instructions = list(map(convert_instruction, dis.get_instructions(code)))
-
-    tracer = InstructionTranslator(instructions, frame)
-    tracer.run()
-
-
-def callback(frame: types.FrameType):
+def _compile(frame: types.FrameType, compiler_fn: Callable):
     # TODO: add a method for frame skiping
     if frame.f_code.co_name not in ['func', 'add']:
         return None
 
-    print('enter callback')
-    print(frame)
-    print(dis.disassemble(frame.f_code))
-    convert_frame(frame)
+    code = frame.f_code
+    instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
-    f_code = frame.f_code
-    g = GuardedCode(f_code)
+    tracer = InstructionTranslator(instructions, frame, compiler_fn)
+    tracer.run()
+
+    # TODO: not work, only support trace, but rae code cannot run
+    g = GuardedCode(code)
     return g
 
 
+def my_compiler(gm: GraphLayer, example_inputs: List[paddle.Tensor]):
+    print("my_compiler() called with FX graph:")
+    gm.graph.print_tabular()
+    return gm.forward
+
+
+class DynamoContext:
+    def __init__(self, callback):
+        self.callback = callback
+
+    def __enter__(self):
+        set_eval_frame(self.callback)
+
+    def __exit__(self):
+        set_eval_frame(None)
+
+    def __call__(self, fn):
+        def _fn(*args, **kwargs):
+            set_eval_frame(self.callback)
+
+            fn(*args, **kwargs)
+
+            set_eval_frame(None)
+
+        return _fn
+
+
+def convert_frame_assert(compiler_fn: Callable):
+    def _convert_frame_assert(frame: types.FrameType):
+        return _compile(frame, compiler_fn)
+
+    return _convert_frame_assert
+
+
+def optimize(backend=None):
+    def convert_frame(compiler_fn):
+        inner_convert = convert_frame_assert(compiler_fn)
+
+        def _convert_frame(frame: types.FrameType):
+            result = inner_convert(frame)
+            return result
+
+        return _convert_frame
+
+    return DynamoContext(convert_frame(backend))
+
+
+@optimize(my_compiler)
 def add(a, b):
-    # print('\tcall add')
+    print('\tcall add')
     c = a + b
     return c
 
 
+@optimize(my_compiler)
 def func(a=1, b=3):
     print('\tcall func')
     c = add(a, b)
@@ -160,13 +211,7 @@ def func(a=1, b=3):
     return d
 
 
-print('set_eval_frame(callback)')
-set_eval_frame(callback)
-
 # func(1, 3)
-add(1, 3)
+res = add(1, 3)
 
-print('\nset_eval_frame(None)')
-set_eval_frame(None)
-
-# func(1, 4)
+print(res)
