@@ -53,7 +53,7 @@ class Interpreter:
             Any: The result of executing ``n``
         """
         args, kwargs = self.fetch_args_kwargs_from_env(n)
-        assert isinstance(args, tuple)
+        # assert isinstance(args, tuple)
         assert isinstance(kwargs, dict)
         return getattr(self, n.op)(n.target, args, kwargs)
 
@@ -201,7 +201,7 @@ class Interpreter:
             Tuple[Tuple, Dict]: ``args`` and ``kwargs`` with concrete values for ``n``.
         """
         args = self.map_nodes_to_values(n.args, n)
-        assert isinstance(args, tuple)
+        #        assert isinstance(args, tuple)
         kwargs = self.map_nodes_to_values(n.kwargs, n)
         assert isinstance(kwargs, dict)
         return args, kwargs

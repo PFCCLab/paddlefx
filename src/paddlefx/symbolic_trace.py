@@ -40,8 +40,12 @@ def _find_module(root, m):
 
 
 def _is_leaf_module(m) -> bool:
-    return m.__module__.startswith("paddle.nn") and not isinstance(
-        m, paddle.nn.Sequential
+    return (
+        m.__module__.startswith("paddle.nn")
+        # `paddle.fluid.dygraph.nn` has removed in paddlepaddle 2.5.0 (develop),
+        # but still keep it for compatibility with paddlepaddle <= 2.4
+        or m.__module__.startswith("paddle.fluid.dygraph.nn")
+        and not isinstance(m, paddle.nn.Sequential)
     )
 
 
@@ -152,7 +156,7 @@ def _create_wrapped_func(orig_fn):
         proxy = _find_proxy(args, kwargs)
         if proxy is not None:
             return_proxy = _create_proxy(
-                proxy.tracer, 'call_function', orig_fn, args, kwargs, orig_fn.__name__
+                proxy.tracer, 'call_function', orig_fn, args, kwargs
             )
             return return_proxy
         return orig_fn(*args, **kwargs)

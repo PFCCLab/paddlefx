@@ -108,7 +108,7 @@ class Graph:
         return n
 
     def output(self, result):
-        return self.create_node(op='output', target='output', args=(result,))
+        return self.create_node(op='output', target='output', args=result)
 
     def _name(self, op):
         if hasattr(op, '__name__'):
@@ -142,6 +142,8 @@ class Graph:
         for node in self.nodes:
             if node.op == 'placeholder':
                 free_vars.append(node.target)
+                if node.target != node.name:
+                    body.append(f'{node.name} = {node.target}\n')
                 continue
             elif node.op == 'call_method':
                 body.append(
