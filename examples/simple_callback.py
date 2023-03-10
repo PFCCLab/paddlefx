@@ -31,3 +31,4 @@ callback = partial(simple_callback, supported_ops=['add'])
 with paddlefx.DynamoContext(callback):
     res = add(1, 3)
 print(res)
+assert res == 4

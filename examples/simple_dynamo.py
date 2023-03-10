@@ -19,12 +19,13 @@ def add(a, b):
 
 
 @paddlefx.optimize(my_compiler, supported_ops=['add', 'func'])
-def func(a=1, b=3):
+def func(a, b):
     print('\tcall func')
     c = add(a, b)
-    d = add(c, a)
+    d = add(c, c)
     return d
 
 
 res = func(1, 3)
 print(res)
+assert res == 8
