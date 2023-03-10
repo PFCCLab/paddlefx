@@ -4,7 +4,6 @@ import types
 from functools import partial
 from typing import List
 
-
 import paddlefx
 
 
