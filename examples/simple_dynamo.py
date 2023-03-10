@@ -10,10 +10,10 @@ import paddle.nn
 import paddlefx
 
 
-def my_compiler(gm: paddlefx.GraphLayer, example_inputs: List[paddle.Tensor] = None):
+def my_compiler(gl: paddlefx.GraphLayer, example_inputs: List[paddle.Tensor] = None):
     print("my_compiler() called with FX graph:")
-    gm.graph.print_tabular()
-    return gm.forward
+    gl.graph.print_tabular()
+    return gl.forward
 
 
 def simple_callback(frame: types.FrameType, supported_ops: List[str] = []):

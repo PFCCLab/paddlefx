@@ -68,8 +68,8 @@ class InstructionTranslatorBase:
         for k, v in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
 
-    def call_user_compiler(self, gm):
-        compiled_fn = self.compiler_fn(gm)
+    def call_user_compiler(self, gl):
+        compiled_fn = self.compiler_fn(gl)
         return compiled_fn
 
     def compile_subgraph(self):
@@ -77,8 +77,8 @@ class InstructionTranslatorBase:
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
 
-        gm = GraphLayer(paddle.nn.Layer(), self.output.graph)
-        self.call_user_compiler(gm)
+        gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
+        self.call_user_compiler(gl)
 
     def LOAD_GLOBAL(self, inst: Instruction):
         pass
