@@ -1,25 +1,14 @@
 import builtins
 import functools
 
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Callable, Dict, NamedTuple
 
 import paddle
 import paddle.nn
 
 from .graph import Graph
 from .graph_layer import GraphLayer
-from .node import Node, base_types, map_aggregate
+from .node import base_types, map_aggregate
 from .proxy import Proxy, _create_proxy
 
 MODULES_TO_PATCH = (paddle, paddle.nn, paddle.nn.functional)

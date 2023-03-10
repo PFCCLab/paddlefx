@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, Tuple
 
 from .graph_layer import GraphLayer
 from .node import Node, map_arg
