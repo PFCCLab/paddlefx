@@ -57,18 +57,18 @@ class DynamoContext:
 
 
 def convert_frame_assert(compiler_fn: Callable):
-    def _convert_frame_assert(frame: types.FrameType):
-        return _compile(frame, compiler_fn)
+    def _convert_frame_assert(frame: types.FrameType, supported_ops: List[str] = []):
+        return _compile(frame, compiler_fn, supported_ops)
 
     return _convert_frame_assert
 
 
-def optimize(backend=None):
+def optimize(backend=None, supported_ops: List[str] = []):
     def convert_frame(compiler_fn):
         inner_convert = convert_frame_assert(compiler_fn)
 
         def _convert_frame(frame: types.FrameType):
-            result = inner_convert(frame)
+            result = inner_convert(frame, supported_ops)
             return result
 
         return _convert_frame

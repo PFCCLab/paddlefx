@@ -69,7 +69,7 @@ class InstructionTranslatorBase:
             self.f_locals[k] = self.output._proxy_placeholder(k)
 
     def call_user_compiler(self, gm):
-        compiled_fn = self.compiler_fn(gm, None)
+        compiled_fn = self.compiler_fn(gm)
         return compiled_fn
 
     def compile_subgraph(self):
