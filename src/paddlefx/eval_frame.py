@@ -30,7 +30,8 @@ def _compile(
     tracer = InstructionTranslator(instructions, frame, compiler_fn)
     tracer.run()
 
-    # TODO: not work, only support trace, but raw code cannot run(need cache support)
+    # NOTE: just return the raw code from catched frame
+    # TODO: support cache
     g = GuardedCode(code)
     return g
 
@@ -49,9 +50,11 @@ class DynamoContext:
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
-            fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
 
             set_eval_frame(old_callback)
+
+            return result
 
         return _fn
 
