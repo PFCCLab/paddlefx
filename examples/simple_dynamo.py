@@ -144,7 +144,7 @@ def _compile(frame: types.FrameType, compiler_fn: Callable):
     tracer = InstructionTranslator(instructions, frame, compiler_fn)
     tracer.run()
 
-    # TODO: not work, only support trace, but rae code cannot run
+    # TODO: not work, only support trace, but raw code cannot run(need cache support)
     g = GuardedCode(code)
     return g
 
