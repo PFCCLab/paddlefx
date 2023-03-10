@@ -6,7 +6,7 @@ except ImportError:
     __version_tuple__ = version_tuple = (0, 0, 0, "unknown")
 
 
-from .eval_frame import DynamoContext, GuardedCode, optimize  # noqa #
+from .eval_frame import DynamoContext, GuardedCode, optimize  # noqa
 from .graph import Graph  # noqa
 from .graph_layer import GraphLayer  # noqa
 from .interpreter import Interpreter  # noqa
