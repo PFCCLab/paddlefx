@@ -4,7 +4,6 @@ import paddle.nn
 from paddle.vision.models import resnet18
 
 from paddlefx import symbolic_trace
-from paddlefx.graph_layer import GraphLayer
 
 net = resnet18()
 traced_layer = symbolic_trace(net)
