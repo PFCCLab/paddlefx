@@ -155,23 +155,36 @@ def my_compiler(gm: GraphLayer, example_inputs: List[paddle.Tensor]):
     return gm.forward
 
 
+def simple_callback(frame: types.FrameType):
+    # TODO: add a method for frame skiping
+    if frame.f_code.co_name not in ['func', 'add']:
+        return None
+
+    print(frame)
+    print(dis.disassemble(frame.f_code))
+
+    f_code = frame.f_code
+    g = GuardedCode(f_code)
+    return g
+
+
 class DynamoContext:
     def __init__(self, callback):
         self.callback = callback
 
     def __enter__(self):
-        set_eval_frame(self.callback)
+        self.old_callback = set_eval_frame(self.callback)
 
-    def __exit__(self):
-        set_eval_frame(None)
+    def __exit__(self, exc_type, exc_value, traceback):
+        set_eval_frame(self.old_callback)
 
     def __call__(self, fn):
         def _fn(*args, **kwargs):
-            set_eval_frame(self.callback)
+            old_callback = set_eval_frame(self.callback)
 
             fn(*args, **kwargs)
 
-            set_eval_frame(None)
+            set_eval_frame(old_callback)
 
         return _fn
 
@@ -196,6 +209,12 @@ def optimize(backend=None):
     return DynamoContext(convert_frame(backend))
 
 
+def add0(a, b):
+    print('\tcall add')
+    c = a + b
+    return c
+
+
 @optimize(my_compiler)
 def add(a, b):
     print('\tcall add')
@@ -213,5 +232,8 @@ def func(a=1, b=3):
 
 # func(1, 3)
 res = add(1, 3)
-
 print(res)
+
+with DynamoContext(simple_callback):
+    res = add0(1, 3)
+    print(res)
