@@ -14,27 +14,6 @@ class GuardedCode:
     # check_fn: GuardFn
 
 
-def _compile(
-    frame: types.FrameType,
-    compiler_fn: Callable,
-    supported_ops: List[str] = [],
-):
-    # NOTE: use supported_ops for frame skiping, eg: supported_ops = ['func', 'add']
-    # TODO: add a method for frame skiping
-    if frame.f_code.co_name not in supported_ops:
-        return None
-
-    code = frame.f_code
-    instructions = list(map(convert_instruction, dis.get_instructions(code)))
-
-    tracer = InstructionTranslator(instructions, frame, compiler_fn)
-    tracer.run()
-
-    # TODO: not work, only support trace, but raw code cannot run(need cache support)
-    g = GuardedCode(code)
-    return g
-
-
 class DynamoContext:
     def __init__(self, callback):
         self.callback = callback
@@ -49,11 +28,38 @@ class DynamoContext:
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
-            fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
 
             set_eval_frame(old_callback)
 
+            return result
+
         return _fn
+
+
+def _compile(
+    frame: types.FrameType,
+    compiler_fn: Callable,
+    supported_ops: List[str] = [],
+):
+    # NOTE: use supported_ops for frame skiping, eg: supported_ops = ['func', 'add']
+    # TODO: add a method for frame skiping
+    if frame.f_code.co_name not in supported_ops:
+        return None
+
+    print(frame)
+    print(dis.disassemble(frame.f_code))
+
+    code = frame.f_code
+    instructions = list(map(convert_instruction, dis.get_instructions(code)))
+
+    tracer = InstructionTranslator(instructions, frame, compiler_fn)
+    tracer.run()
+
+    # NOTE: just return the raw code from catched frame
+    # TODO: support cache
+    g = GuardedCode(code)
+    return g
 
 
 def convert_frame_assert(compiler_fn: Callable):
