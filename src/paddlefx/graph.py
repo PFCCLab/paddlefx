@@ -1,5 +1,7 @@
 import builtins
 
+from typing import Optional
+
 import paddle
 import paddle.nn
 
@@ -71,10 +73,32 @@ def map_arg(a, fn):
         return a
 
 
+class _node_list:
+    def __init__(self, graph: 'Graph', direction: str = '_next'):
+        assert direction in ['_next', '_prev']
+        self.graph = graph
+        self.direction = direction
+
+    def __len__(self):
+        return self.graph._len
+
+    def __iter__(self):
+        root, direction = self.graph._root, self.direction
+        cur = getattr(root, direction)
+        while cur is not root:
+            if not cur._erased:
+                yield cur
+            cur = getattr(cur, direction)
+
+    def __reversed__(self):
+        return _node_list(self.graph, '_next' if self.direction == '_prev' else '_prev')
+
+
 class Graph:
     def __init__(self):
-        self.nodes = []
         self._used_names = {}  # base name -> number
+        self._root = Node(self, '', 'root', '', (), {})
+        self._len = 0
 
     def _mark_uses(self, a):
         def add_use(n: Node):
@@ -82,6 +106,9 @@ class Graph:
             return n
 
         map_arg(a, add_use)
+
+    def _insert(self, node: Node):
+        self._root.prepend(node)
 
     def create_node(self, op, target=None, args=None, kwargs=None, name=None):
         assert op in (
@@ -104,7 +131,7 @@ class Graph:
             args,
             kwargs,
         )
-        self.nodes.append(n)
+        self._insert(n)
         return n
 
     def output(self, result):
@@ -135,6 +162,10 @@ class Graph:
 
     def placeholder(self, name):
         return self.create_node('placeholder', target=name, name=name.replace('*', ''))
+
+    @property
+    def nodes(self):
+        return _node_list(self)
 
     def python_code(self, root_module):
         free_vars = []

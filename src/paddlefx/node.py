@@ -1,3 +1,5 @@
+import warnings
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 import paddle
@@ -17,9 +19,40 @@ class Node:
         self.args = args
         self.kwargs = kwargs
         self.uses = 0
+        self._prev = self
+        self._next = self
+        self._erased = False
 
     def __repr__(self):
         return self.name
+
+    @property
+    def next(self) -> 'Node':
+        return self._next
+
+    @property
+    def prev(self) -> 'Node':
+        return self._prev
+
+    def prepend(self, x: 'Node') -> None:
+        assert self.graph == x.graph, "Attempting to move a Node into a different Graph"
+        if self == x:
+            warnings.warn(
+                "Trying to prepend a node to itself. This behavior has no effect on the graph."
+            )
+            return
+        x._remove_from_list()
+        p = self._prev
+        p._next, x._prev = x, p
+        x._next, self._prev = self, x
+
+    def append(self, x: 'Node') -> None:
+        self._next.prepend(x)
+
+    def _remove_from_list(self):
+        p, n = self._prev, self._next
+        p._next, n._prev = n, p
+        self._prev, self._next = self, self
 
 
 def map_aggregate(a, fn):
