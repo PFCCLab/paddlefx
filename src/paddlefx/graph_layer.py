@@ -3,7 +3,7 @@ import linecache
 
 import paddle
 
-from paddlefx import Graph
+from .graph import Graph
 
 # normal exec loses the source code, however we can patch
 # the linecache module to still recover it.

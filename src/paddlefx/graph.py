@@ -1,7 +1,5 @@
 import builtins
 
-from typing import Optional
-
 import paddle
 import paddle.nn
 

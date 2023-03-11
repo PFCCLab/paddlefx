@@ -3,7 +3,7 @@ from __future__ import annotations
 import operator
 import typing
 
-from typing import Any, Callable, Dict, Iterable, Iterator, Optional, OrderedDict, Tuple
+from typing import Optional
 
 if typing.TYPE_CHECKING:
     from .node import Node

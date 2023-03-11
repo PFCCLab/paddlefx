@@ -18,6 +18,18 @@ repos:
     rev: 23.1.0
     hooks:
       - id: black
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.0.1
+    hooks:
+      - id: autoflake
+        args:
+          - "--in-place"
+          - "--jobs"
+          - "10"
+          - "--expand-star-imports"
+          - "--remove-duplicate-keys"
+          - "--remove-unused-variables"
+          - "--remove-all-unused-imports"
   - repo: https://github.com/asottile/yesqa
     rev: v1.4.0
     hooks:
