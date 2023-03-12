@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import dataclasses
 import dis
 import types
 
-from typing import Callable, List
+from typing import Callable
 
 from ._eval_frame import set_eval_frame
 from .translator import InstructionTranslator, convert_instruction
@@ -40,7 +42,7 @@ class DynamoContext:
 def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
-    supported_ops: List[str] = [],
+    supported_ops: list[str] = [],
 ):
     # NOTE: use supported_ops for frame skiping, eg: supported_ops = ['func', 'add']
     # TODO: add a method for frame skiping
@@ -63,13 +65,13 @@ def _compile(
 
 
 def convert_frame_assert(compiler_fn: Callable):
-    def _convert_frame_assert(frame: types.FrameType, supported_ops: List[str] = []):
+    def _convert_frame_assert(frame: types.FrameType, supported_ops: list[str] = []):
         return _compile(frame, compiler_fn, supported_ops)
 
     return _convert_frame_assert
 
 
-def optimize(backend=None, supported_ops: List[str] = []):
+def optimize(backend=None, supported_ops: list[str] = []):
     def convert_frame(compiler_fn):
         inner_convert = convert_frame_assert(compiler_fn)
 

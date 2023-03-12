@@ -1,5 +1,7 @@
 # this is from: https://github.com/pytorch/tutorials/blob/main/intermediate_source/fx_profiling_tutorial.py
 
+from __future__ import annotations
+
 import statistics
 import time
 

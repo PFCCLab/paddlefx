@@ -19,6 +19,7 @@ workers = 4
 profile = "black"
 lines_between_types = 1
 known_first_party = ["paddlefx"]
+add_imports = ["from __future__ import annotations"]
 
 [tool.pytest.ini_options]
 minversion = "7.0.0"

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import dataclasses
 import dis
 import operator
 import types
 
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import paddle
 import paddle.nn
@@ -53,12 +55,12 @@ def convert_instruction(i: dis.Instruction):
 class InstructionTranslatorBase:
     def __init__(
         self,
-        instructions: List[Instruction],
+        instructions: list[Instruction],
         frame: types.FrameType,
         compiler_fn: Any,
         output: OutputGraph,
     ):
-        self.instructions: List[Instruction] = instructions
+        self.instructions: list[Instruction] = instructions
         self.frame: types.FrameType = frame
         self.compiler_fn = compiler_fn
         self.output: OutputGraph = output
@@ -111,7 +113,7 @@ class InstructionTranslatorBase:
 class InstructionTranslator(InstructionTranslatorBase):
     def __init__(
         self,
-        instructions: List[Instruction],
+        instructions: list[Instruction],
         frame: types.FrameType,
         compiler_fn: Any,
     ):

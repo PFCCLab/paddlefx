@@ -1,4 +1,6 @@
-from typing import Any, Dict, Iterator, Tuple
+from __future__ import annotations
+
+from typing import Any, Iterator
 
 from .graph_layer import GraphLayer
 from .node import Node, map_arg
@@ -10,7 +12,7 @@ class Interpreter:
     def __init__(self, module: GraphLayer):
         assert isinstance(module, GraphLayer)
         self.module = module
-        self.env: Dict[Node, Any] = {}
+        self.env: dict[Node, Any] = {}
         self.name = "Interpreter"
 
     def run(self, *args) -> Any:
@@ -58,7 +60,7 @@ class Interpreter:
         return getattr(self, n.op)(n.target, args, kwargs)
 
     # Main Node running APIs
-    def placeholder(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def placeholder(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``placeholder`` node. Note that this is stateful:
         ``Interpreter`` maintains an internal iterator over
         arguments passed to ``run`` and this method returns
@@ -66,8 +68,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (Tuple): Tuple of positional args for this invocation
-            kwargs (Dict): Dict of keyword arguments for this invocation
+            args (tuple): Tuple of positional args for this invocation
+            kwargs (dict): Dict of keyword arguments for this invocation
 
         Returns:
             Any: The argument value that was retrieved.
@@ -88,14 +90,14 @@ class Interpreter:
                         f'Expected positional argument for parameter {target}, but one was not passed in!'
                     ) from si
 
-    def get_attr(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def get_attr(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``get_attr`` node. Will retrieve an attribute
         value from the ``Module`` hierarchy of ``self.module``.
 
         Args:
             target (Target): The call target for this node.
-            args (Tuple): Tuple of positional args for this invocation
-            kwargs (Dict): Dict of keyword arguments for this invocation
+            args (tuple): Tuple of positional args for this invocation
+            kwargs (dict): Dict of keyword arguments for this invocation
 
         Return:
             Any: The value of the attribute that was retrieved
@@ -103,13 +105,13 @@ class Interpreter:
         assert isinstance(target, str)
         return self.fetch_attr(target)
 
-    def call_function(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_function(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``call_function`` node and return the result.
 
         Args:
             target (Target): The call target for this node.
-            args (Tuple): Tuple of positional args for this invocation
-            kwargs (Dict): Dict of keyword arguments for this invocation
+            args (tuple): Tuple of positional args for this invocation
+            kwargs (dict): Dict of keyword arguments for this invocation
 
         Return
             Any: The value returned by the function invocation
@@ -119,13 +121,13 @@ class Interpreter:
         # Execute the function and return the result
         return target(*args, **kwargs)
 
-    def call_method(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_method(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``call_method`` node and return the result.
 
         Args:
             target (Target): The call target for this node.
-            args (Tuple): Tuple of positional args for this invocation
-            kwargs (Dict): Dict of keyword arguments for this invocation
+            args (tuple): Tuple of positional args for this invocation
+            kwargs (dict): Dict of keyword arguments for this invocation
 
         Return
             Any: The value returned by the method invocation
@@ -137,13 +139,13 @@ class Interpreter:
         assert isinstance(target, str)
         return getattr(self_obj, target)(*args_tail, **kwargs)
 
-    def call_module(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_module(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``call_module`` node and return the result.
 
         Args:
             target (Target): The call target for this node.
-            args (Tuple): Tuple of positional args for this invocation
-            kwargs (Dict): Dict of keyword arguments for this invocation
+            args (tuple): Tuple of positional args for this invocation
+            kwargs (dict): Dict of keyword arguments for this invocation
 
         Return
             Any: The value returned by the module invocation
@@ -156,14 +158,14 @@ class Interpreter:
 
         return submod(*args, **kwargs)
 
-    def output(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def output(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute an ``output`` node. This really just retrieves
         the value referenced by the ``output`` node and returns it.
 
         Args:
             target (Target): The call target for this node.
-            args (Tuple): Tuple of positional args for this invocation
-            kwargs (Dict): Dict of keyword arguments for this invocation
+            args (tuple): Tuple of positional args for this invocation
+            kwargs (dict): Dict of keyword arguments for this invocation
 
         Return:
             Any: The return value referenced by the output node
@@ -190,7 +192,7 @@ class Interpreter:
             attr_itr = getattr(attr_itr, atom)
         return attr_itr
 
-    def fetch_args_kwargs_from_env(self, n: Node) -> Tuple[Tuple, Dict]:
+    def fetch_args_kwargs_from_env(self, n: Node) -> tuple[tuple, dict]:
         """Fetch the concrete values of ``args`` and ``kwargs`` of node ``n``
         from the current execution environment.
 
@@ -198,7 +200,7 @@ class Interpreter:
             n (Node): The node for which ``args`` and ``kwargs`` should be fetched.
 
         Return:
-            Tuple[Tuple, Dict]: ``args`` and ``kwargs`` with concrete values for ``n``.
+            tuple[tuple, dict]: ``args`` and ``kwargs`` with concrete values for ``n``.
         """
         args = self.map_nodes_to_values(n.args, n)
         #        assert isinstance(args, tuple)

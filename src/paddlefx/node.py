@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import warnings
 
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Union
 
 import paddle
 
@@ -23,7 +25,7 @@ class Node:
         self.kwargs = {}
         self._update_args_kwargs(args, kwargs)
         # Is a dict to act as an "ordered set". Keys are significant, value dont-care
-        self.users: Dict['Node', None] = {}
+        self.users: dict[Node, None] = {}
 
         self._prev = self
         self._next = self
@@ -33,14 +35,14 @@ class Node:
         return self.name
 
     @property
-    def next(self) -> 'Node':
+    def next(self) -> Node:
         return self._next
 
     @property
-    def prev(self) -> 'Node':
+    def prev(self) -> Node:
         return self._prev
 
-    def prepend(self, x: 'Node') -> None:
+    def prepend(self, x: Node) -> None:
         assert self.graph == x.graph, "Attempting to move a Node into a different Graph"
         if self == x:
             warnings.warn(
@@ -52,7 +54,7 @@ class Node:
         p._next, x._prev = x, p
         x._next, self._prev = self, x
 
-    def append(self, x: 'Node') -> None:
+    def append(self, x: Node) -> None:
         self._next.prepend(x)
 
     def _remove_from_list(self):
