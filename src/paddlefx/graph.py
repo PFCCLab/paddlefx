@@ -1,5 +1,7 @@
 import builtins
 
+from typing import Optional
+
 import paddle
 import paddle.nn
 
@@ -71,6 +73,18 @@ def map_arg(a, fn):
         return a
 
 
+class _InsertPoint:
+    def __init__(self, graph, new_insert):
+        self.graph = graph
+        self.orig_insert, graph._insert = graph._insert, new_insert
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type, value, tb):
+        self.graph._insert = self.orig_insert
+
+
 class _node_list:
     def __init__(self, graph: 'Graph', direction: str = '_next'):
         assert direction in ['_next', '_prev']
@@ -97,6 +111,9 @@ class Graph:
         self._used_names = {}  # base name -> number
         self._root = Node(self, '', 'root', '', (), {})
         self._len = 0
+        self._insert = (
+            self._root.prepend
+        )  # Set the default insert point to the graph trailing
 
     def _mark_uses(self, a):
         def add_use(n: Node):
@@ -105,8 +122,12 @@ class Graph:
 
         map_arg(a, add_use)
 
-    def _insert(self, node: Node):
-        self._root.prepend(node)
+    def _mark_unused(self, a):
+        def remove_use(n: Node):
+            n.uses -= 1
+            return n
+
+        map_arg(a, remove_use)
 
     def create_node(self, op, target=None, args=None, kwargs=None, name=None):
         assert op in (
@@ -130,6 +151,7 @@ class Graph:
             kwargs,
         )
         self._insert(n)
+        self._len += 1
         return n
 
     def output(self, result):
@@ -160,6 +182,40 @@ class Graph:
 
     def placeholder(self, name):
         return self.create_node('placeholder', target=name, name=name.replace('*', ''))
+
+    def erase_node(self, to_erase: Node) -> None:
+        if to_erase.uses > 0:
+            raise RuntimeError(
+                f'Tried to erase Node {to_erase} but it still had {to_erase.uses} uses'
+            )
+
+        to_erase._remove_from_list()
+        to_erase._erased = True  # iterators may retain handles to erased nodes
+        self._len -= 1
+
+        # Null out this Node's argument nodes so that the Nodes referred to
+        # can update their ``users`` accordingly
+        self._mark_unused(to_erase.args)
+        self._mark_unused(to_erase.kwargs)
+
+        new_args = map_arg(to_erase.args, lambda n: None)
+        assert isinstance(new_args, tuple)
+        to_erase.args = new_args
+        new_kwargs = map_arg(to_erase.kwargs, lambda n: None)
+        assert isinstance(new_kwargs, dict)
+        to_erase.kwargs = new_kwargs
+
+    def inserting_before(self, n: Optional[Node] = None):
+        if n is None:
+            return self.inserting_after(self._root)
+        assert n.graph == self, "Node to insert before is not in graph."
+        return _InsertPoint(self, n.prepend)
+
+    def inserting_after(self, n: Optional[Node] = None):
+        if n is None:
+            return self.inserting_before(self._root)
+        assert n.graph == self, "Node to insert after is not in graph."
+        return _InsertPoint(self, n.append)
 
     @property
     def nodes(self):
