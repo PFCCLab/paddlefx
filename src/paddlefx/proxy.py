@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dis
+import inspect
 import operator
 import typing
 
@@ -33,6 +35,18 @@ class Proxy:
         # note: not added to the graph yet, if this is a method call
         # we peephole optimize to the method invocation
         return Attribute(self, k)
+
+    def __iter__(self):
+        frame = inspect.currentframe()
+        assert frame is not None
+        calling_frame = frame.f_back
+        assert calling_frame is not None
+        instructions = list(dis.get_instructions(calling_frame.f_code))
+        current_instruction_idx = calling_frame.f_lasti // 2
+        current_instruction = instructions[current_instruction_idx]
+        if current_instruction.opname == "UNPACK_SEQUENCE":
+            return (self[i] for i in range(current_instruction.argval))
+        raise ValueError("Cannot find UNPACK_SEQUENCE instruction")
 
 
 class Attribute(Proxy):
