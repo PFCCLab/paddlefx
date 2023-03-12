@@ -15,8 +15,10 @@ class TestFx(unittest.TestCase):
             (paddle.vision.models.googlenet(), paddle.randn([2, 3, 224, 224])),
             (paddle.vision.models.inception_v3(), paddle.randn([2, 3, 299, 299])),
             (paddle.vision.models.mobilenet_v2(), paddle.randn([2, 3, 224, 224])),
-            # shufflenet will fail, since it calls into `x.shape[0:4]`
-            # (paddle.vision.models.shufflenet_v2_swish(), paddle.randn([2, 3, 224, 224])),
+            (
+                paddle.vision.models.shufflenet_v2_swish(),
+                paddle.randn([2, 3, 224, 224]),
+            ),
             (paddle.vision.models.squeezenet1_0(), paddle.randn([2, 3, 224, 224])),
             (paddle.vision.models.vgg11(), paddle.randn([2, 3, 224, 224])),
             (paddle.vision.models.wide_resnet101_2(), paddle.randn([2, 3, 224, 224])),

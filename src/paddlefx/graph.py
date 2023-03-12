@@ -1,4 +1,7 @@
 import builtins
+import keyword
+
+from typing import Any
 
 import paddle
 import paddle.nn
@@ -22,6 +25,18 @@ def _qualified_name(func):
     name = func.__name__
     module = _find_module_of_method(func)
     return f'{module}.{name}'
+
+
+def _is_illegal_name(name: str, obj: Any) -> bool:
+    # 1. keywords are never allowed as names.
+    if name in keyword.kwlist:
+        return True
+
+    # 2. Can't shadow a builtin name, unless you *are* that builtin.
+    if name in builtins.__dict__:
+        return obj is not builtins.__dict__[name]
+
+    return False
 
 
 def _find_module_of_method(orig_method):
@@ -96,9 +111,12 @@ class Graph:
         kwargs = {} if kwargs is None else kwargs
         self._mark_uses(args)
         self._mark_uses(kwargs)
+        name = name if name is not None else self._name(target or op)
+        if name[0].isdigit():
+            name = f'_{name}'
         n = Node(
             self,
-            name if name is not None else self._name(target or op),
+            name,
             op,
             target,
             args,
@@ -125,6 +143,7 @@ class Graph:
                 not hasattr(paddle, op)
                 and not hasattr(paddle.nn.functional, op)
                 and not hasattr(paddle.nn, op)
+                and not _is_illegal_name(op, None)
             ):
                 return op
         i = self._used_names[op] = self._used_names[op] + 1
