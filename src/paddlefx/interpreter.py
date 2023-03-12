@@ -68,8 +68,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (tuple): Tuple of positional args for this invocation
-            kwargs (dict): Dict of keyword arguments for this invocation
+            args (Tuple): Tuple of positional args for this invocation
+            kwargs (Dict): Dict of keyword arguments for this invocation
 
         Returns:
             Any: The argument value that was retrieved.
@@ -96,8 +96,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (tuple): Tuple of positional args for this invocation
-            kwargs (dict): Dict of keyword arguments for this invocation
+            args (Tuple): Tuple of positional args for this invocation
+            kwargs (Dict): Dict of keyword arguments for this invocation
 
         Return:
             Any: The value of the attribute that was retrieved
@@ -110,8 +110,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (tuple): Tuple of positional args for this invocation
-            kwargs (dict): Dict of keyword arguments for this invocation
+            args (Tuple): Tuple of positional args for this invocation
+            kwargs (Dict): Dict of keyword arguments for this invocation
 
         Return
             Any: The value returned by the function invocation
@@ -126,8 +126,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (tuple): Tuple of positional args for this invocation
-            kwargs (dict): Dict of keyword arguments for this invocation
+            args (Tuple): Tuple of positional args for this invocation
+            kwargs (Dict): Dict of keyword arguments for this invocation
 
         Return
             Any: The value returned by the method invocation
@@ -144,8 +144,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (tuple): Tuple of positional args for this invocation
-            kwargs (dict): Dict of keyword arguments for this invocation
+            args (Tuple): Tuple of positional args for this invocation
+            kwargs (Dict): Dict of keyword arguments for this invocation
 
         Return
             Any: The value returned by the module invocation
@@ -164,8 +164,8 @@ class Interpreter:
 
         Args:
             target (Target): The call target for this node.
-            args (tuple): Tuple of positional args for this invocation
-            kwargs (dict): Dict of keyword arguments for this invocation
+            args (Tuple): Tuple of positional args for this invocation
+            kwargs (Dict): Dict of keyword arguments for this invocation
 
         Return:
             Any: The return value referenced by the output node
@@ -200,7 +200,7 @@ class Interpreter:
             n (Node): The node for which ``args`` and ``kwargs`` should be fetched.
 
         Return:
-            tuple[tuple, dict]: ``args`` and ``kwargs`` with concrete values for ``n``.
+            Tuple[Tuple, Dict]: ``args`` and ``kwargs`` with concrete values for ``n``.
         """
         args = self.map_nodes_to_values(n.args, n)
         #        assert isinstance(args, tuple)
