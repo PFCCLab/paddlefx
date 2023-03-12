@@ -1,7 +1,7 @@
 import builtins
 import keyword
 
-from typing import Any
+from typing import Any, Optional
 
 import paddle
 import paddle.nn
@@ -86,17 +86,46 @@ def map_arg(a, fn):
         return a
 
 
+class _InsertPoint:
+    def __init__(self, graph, new_insert):
+        self.graph = graph
+        self.orig_insert, graph._insert = graph._insert, new_insert
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type, value, tb):
+        self.graph._insert = self.orig_insert
+
+
+class _node_list:
+    def __init__(self, graph: 'Graph', direction: str = '_next'):
+        assert direction in ['_next', '_prev']
+        self.graph = graph
+        self.direction = direction
+
+    def __len__(self):
+        return self.graph._len
+
+    def __iter__(self):
+        root, direction = self.graph._root, self.direction
+        cur = getattr(root, direction)
+        while cur is not root:
+            if not cur._erased:
+                yield cur
+            cur = getattr(cur, direction)
+
+    def __reversed__(self):
+        return _node_list(self.graph, '_next' if self.direction == '_prev' else '_prev')
+
+
 class Graph:
     def __init__(self):
-        self.nodes = []
         self._used_names = {}  # base name -> number
-
-    def _mark_uses(self, a):
-        def add_use(n: Node):
-            n.uses += 1
-            return n
-
-        map_arg(a, add_use)
+        self._root = Node(self, '', 'root', '', (), {})
+        self._len = 0
+        # Set the default insert point to the graph trailing
+        self._insert = self._root.prepend
 
     def create_node(self, op, target=None, args=None, kwargs=None, name=None):
         assert op in (
@@ -109,8 +138,6 @@ class Graph:
         )
         args = () if args is None else args
         kwargs = {} if kwargs is None else kwargs
-        self._mark_uses(args)
-        self._mark_uses(kwargs)
         name = name if name is not None else self._name(target or op)
         if name[0].isdigit():
             name = f'_{name}'
@@ -122,11 +149,12 @@ class Graph:
             args,
             kwargs,
         )
-        self.nodes.append(n)
+        self._insert(n)
+        self._len += 1
         return n
 
     def output(self, result):
-        return self.create_node(op='output', target='output', args=result)
+        return self.create_node(op='output', target='output', args=(result,))
 
     def _name(self, op):
         if hasattr(op, '__name__'):
@@ -154,6 +182,40 @@ class Graph:
 
     def placeholder(self, name):
         return self.create_node('placeholder', target=name, name=name.replace('*', ''))
+
+    def erase_node(self, to_erase: Node) -> None:
+        if len(to_erase.users) > 0:
+            raise RuntimeError(
+                f'Tried to erase Node {to_erase} but it still had {len(to_erase.users)} '
+                f'users in the graph: {to_erase.users}!'
+            )
+
+        to_erase._remove_from_list()
+        to_erase._erased = True  # iterators may retain handles to erased nodes
+        self._len -= 1
+
+        # Null out this Node's argument nodes so that the Nodes referred to
+        # can update their ``users`` accordingly
+        to_erase._update_args_kwargs(
+            map_arg(to_erase.args, lambda n: None),
+            map_arg(to_erase.kwargs, lambda n: None),
+        )
+
+    def inserting_before(self, n: Optional[Node] = None):
+        if n is None:
+            return self.inserting_after(self._root)
+        assert n.graph == self, "Node to insert before is not in graph."
+        return _InsertPoint(self, n.prepend)
+
+    def inserting_after(self, n: Optional[Node] = None):
+        if n is None:
+            return self.inserting_before(self._root)
+        assert n.graph == self, "Node to insert after is not in graph."
+        return _InsertPoint(self, n.append)
+
+    @property
+    def nodes(self):
+        return _node_list(self)
 
     def python_code(self, root_module):
         free_vars = []
@@ -206,7 +268,7 @@ class Graph:
                 )
                 continue
             elif node.op == 'output':
-                body.append(f'return {node.args}\n')
+                body.append(f'return {node.args[0]}\n')
                 continue
             raise NotImplementedError(f'node: {node.op} {node.target}')
 
