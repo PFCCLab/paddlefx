@@ -111,23 +111,8 @@ class Graph:
         self._used_names = {}  # base name -> number
         self._root = Node(self, '', 'root', '', (), {})
         self._len = 0
-        self._insert = (
-            self._root.prepend
-        )  # Set the default insert point to the graph trailing
-
-    def _mark_uses(self, a):
-        def add_use(n: Node):
-            n.uses += 1
-            return n
-
-        map_arg(a, add_use)
-
-    def _mark_unused(self, a):
-        def remove_use(n: Node):
-            n.uses -= 1
-            return n
-
-        map_arg(a, remove_use)
+        # Set the default insert point to the graph trailing
+        self._insert = self._root.prepend
 
     def create_node(self, op, target=None, args=None, kwargs=None, name=None):
         assert op in (
@@ -140,8 +125,6 @@ class Graph:
         )
         args = () if args is None else args
         kwargs = {} if kwargs is None else kwargs
-        self._mark_uses(args)
-        self._mark_uses(kwargs)
         n = Node(
             self,
             name if name is not None else self._name(target or op),
@@ -155,7 +138,7 @@ class Graph:
         return n
 
     def output(self, result):
-        return self.create_node(op='output', target='output', args=result)
+        return self.create_node(op='output', target='output', args=(result,))
 
     def _name(self, op):
         if hasattr(op, '__name__'):
@@ -184,9 +167,10 @@ class Graph:
         return self.create_node('placeholder', target=name, name=name.replace('*', ''))
 
     def erase_node(self, to_erase: Node) -> None:
-        if to_erase.uses > 0:
+        if len(to_erase.users) > 0:
             raise RuntimeError(
-                f'Tried to erase Node {to_erase} but it still had {to_erase.uses} uses'
+                f'Tried to erase Node {to_erase} but it still had {len(to_erase.users)} '
+                f'users in the graph: {to_erase.users}!'
             )
 
         to_erase._remove_from_list()
@@ -195,15 +179,10 @@ class Graph:
 
         # Null out this Node's argument nodes so that the Nodes referred to
         # can update their ``users`` accordingly
-        self._mark_unused(to_erase.args)
-        self._mark_unused(to_erase.kwargs)
-
-        new_args = map_arg(to_erase.args, lambda n: None)
-        assert isinstance(new_args, tuple)
-        to_erase.args = new_args
-        new_kwargs = map_arg(to_erase.kwargs, lambda n: None)
-        assert isinstance(new_kwargs, dict)
-        to_erase.kwargs = new_kwargs
+        to_erase._update_args_kwargs(
+            map_arg(to_erase.args, lambda n: None),
+            map_arg(to_erase.kwargs, lambda n: None),
+        )
 
     def inserting_before(self, n: Optional[Node] = None):
         if n is None:
@@ -272,7 +251,7 @@ class Graph:
                 )
                 continue
             elif node.op == 'output':
-                body.append(f'return {node.args}\n')
+                body.append(f'return {node.args[0]}\n')
                 continue
             raise NotImplementedError(f'node: {node.op} {node.target}')
 
