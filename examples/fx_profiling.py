@@ -1,9 +1,11 @@
 # this is from: https://github.com/pytorch/tutorials/blob/main/intermediate_source/fx_profiling_tutorial.py
 
+from __future__ import annotations
+
 import statistics
 import time
 
-from typing import Any, Dict, List
+from typing import Any
 
 import paddle
 import paddle.nn
@@ -27,8 +29,8 @@ class ProfilingInterpreter(Interpreter):
         gm = symbolic_trace(mod)
         super().__init__(gm)
 
-        self.total_runtime_sec: List[float] = []
-        self.runtimes_sec: Dict[paddlefx.Node, List[float]] = {}
+        self.total_runtime_sec: list[float] = []
+        self.runtimes_sec: dict[paddlefx.Node, list[float]] = {}
 
     def run(self, *args) -> Any:
         # Record the time we started running the model
@@ -64,7 +66,7 @@ class ProfilingInterpreter(Interpreter):
 
     def summary(self, should_sort: bool = False) -> str:
         # Build up a list of summary information for each node
-        node_summaries: List[List[Any]] = []
+        node_summaries: list[list[Any]] = []
         # Calculate the mean runtime for the whole network. Because the
         # network may have been called multiple times during profiling,
         # we need to summarize the runtimes. We choose to use the
@@ -90,7 +92,7 @@ class ProfilingInterpreter(Interpreter):
 
         # Use the ``tabulate`` library to create a well-formatted table
         # presenting our summary information
-        headers: List[str] = [
+        headers: list[str] = [
             'Op type',
             'Op',
             'Average runtime (s)',

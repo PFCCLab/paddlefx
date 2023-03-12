@@ -19,6 +19,13 @@ workers = 4
 profile = "black"
 lines_between_types = 1
 known_first_party = ["paddlefx"]
+add_imports = ["from __future__ import annotations"]
+
+# https://beta.ruff.rs/docs/configuration/
+[tool.ruff]
+select = ["UP"]
+ignore = ["UP015"]
+target-version = "py38"
 
 [tool.pytest.ini_options]
 minversion = "7.0.0"

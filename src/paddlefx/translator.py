@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import dataclasses
 import dis
 import operator
 import types
 
-from typing import Any, List, Optional
+from typing import Any
 
 import paddle
 import paddle.nn
@@ -23,13 +25,13 @@ class Instruction:
 
     opcode: int
     opname: str
-    arg: Optional[int]
+    arg: int | None
     argval: Any
-    offset: Optional[int] = None
-    starts_line: Optional[int] = None
+    offset: int | None = None
+    starts_line: int | None = None
     is_jump_target: bool = False
     # extra fields to make modification easier:
-    target: Optional["Instruction"] = None
+    target: Instruction | None = None
 
     def __hash__(self):
         return id(self)
@@ -53,12 +55,12 @@ def convert_instruction(i: dis.Instruction):
 class InstructionTranslatorBase:
     def __init__(
         self,
-        instructions: List[Instruction],
+        instructions: list[Instruction],
         frame: types.FrameType,
         compiler_fn: Any,
         output: OutputGraph,
     ):
-        self.instructions: List[Instruction] = instructions
+        self.instructions: list[Instruction] = instructions
         self.frame: types.FrameType = frame
         self.compiler_fn = compiler_fn
         self.output: OutputGraph = output
@@ -111,7 +113,7 @@ class InstructionTranslatorBase:
 class InstructionTranslator(InstructionTranslatorBase):
     def __init__(
         self,
-        instructions: List[Instruction],
+        instructions: list[Instruction],
         frame: types.FrameType,
         compiler_fn: Any,
     ):

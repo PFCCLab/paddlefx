@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import builtins
 import functools
 
-from typing import Any, Callable, Dict, NamedTuple
+from typing import Any, Callable, NamedTuple
 
 import paddle
 import paddle.nn
@@ -153,7 +155,7 @@ def _create_wrapped_func(orig_fn):
     return wrapped
 
 
-def _autowrap_check(patcher: _Patcher, frame_dict: Dict[str, Any]):
+def _autowrap_check(patcher: _Patcher, frame_dict: dict[str, Any]):
     if patcher.visit_once(frame_dict):
         for name, value in frame_dict.items():
             if (

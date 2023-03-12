@@ -30,6 +30,11 @@ repos:
           - "--remove-duplicate-keys"
           - "--remove-unused-variables"
           - "--remove-all-unused-imports"
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.254
+    hooks:
+    - id: ruff
+      args: [--fix, --exit-non-zero-on-fix, --no-cache]
   - repo: https://github.com/asottile/yesqa
     rev: v1.4.0
     hooks:

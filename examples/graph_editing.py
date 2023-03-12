@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import paddle
 
 from paddlefx import symbolic_trace

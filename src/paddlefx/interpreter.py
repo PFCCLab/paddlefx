@@ -1,4 +1,6 @@
-from typing import Any, Dict, Iterator, Tuple
+from __future__ import annotations
+
+from typing import Any, Iterator
 
 from .graph_layer import GraphLayer
 from .node import Node, map_arg
@@ -10,7 +12,7 @@ class Interpreter:
     def __init__(self, module: GraphLayer):
         assert isinstance(module, GraphLayer)
         self.module = module
-        self.env: Dict[Node, Any] = {}
+        self.env: dict[Node, Any] = {}
         self.name = "Interpreter"
 
     def run(self, *args) -> Any:
@@ -30,7 +32,7 @@ class Interpreter:
                 self.env[node] = self.run_node(node)
             except Exception as e:
                 msg = f"While executing {node}"
-                msg = '{}\n\n{}'.format(e.args[0], msg) if e.args else str(msg)
+                msg = f'{e.args[0]}\n\n{msg}' if e.args else str(msg)
                 e.args = (msg,) + e.args[1:]
                 if isinstance(e, KeyError):
                     raise RuntimeError(*e.args) from e
@@ -58,7 +60,7 @@ class Interpreter:
         return getattr(self, n.op)(n.target, args, kwargs)
 
     # Main Node running APIs
-    def placeholder(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def placeholder(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``placeholder`` node. Note that this is stateful:
         ``Interpreter`` maintains an internal iterator over
         arguments passed to ``run`` and this method returns
@@ -88,7 +90,7 @@ class Interpreter:
                         f'Expected positional argument for parameter {target}, but one was not passed in!'
                     ) from si
 
-    def get_attr(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def get_attr(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``get_attr`` node. Will retrieve an attribute
         value from the ``Module`` hierarchy of ``self.module``.
 
@@ -103,7 +105,7 @@ class Interpreter:
         assert isinstance(target, str)
         return self.fetch_attr(target)
 
-    def call_function(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_function(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``call_function`` node and return the result.
 
         Args:
@@ -119,7 +121,7 @@ class Interpreter:
         # Execute the function and return the result
         return target(*args, **kwargs)
 
-    def call_method(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_method(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``call_method`` node and return the result.
 
         Args:
@@ -137,7 +139,7 @@ class Interpreter:
         assert isinstance(target, str)
         return getattr(self_obj, target)(*args_tail, **kwargs)
 
-    def call_module(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def call_module(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute a ``call_module`` node and return the result.
 
         Args:
@@ -156,7 +158,7 @@ class Interpreter:
 
         return submod(*args, **kwargs)
 
-    def output(self, target, args: Tuple, kwargs: Dict[str, Any]) -> Any:
+    def output(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
         """Execute an ``output`` node. This really just retrieves
         the value referenced by the ``output`` node and returns it.
 
@@ -190,7 +192,7 @@ class Interpreter:
             attr_itr = getattr(attr_itr, atom)
         return attr_itr
 
-    def fetch_args_kwargs_from_env(self, n: Node) -> Tuple[Tuple, Dict]:
+    def fetch_args_kwargs_from_env(self, n: Node) -> tuple[tuple, dict]:
         """Fetch the concrete values of ``args`` and ``kwargs`` of node ``n``
         from the current execution environment.
 

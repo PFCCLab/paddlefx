@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import builtins
 import keyword
 
-from typing import Any, Optional
+from typing import Any
 
 import paddle
 import paddle.nn
@@ -99,7 +101,7 @@ class _InsertPoint:
 
 
 class _node_list:
-    def __init__(self, graph: 'Graph', direction: str = '_next'):
+    def __init__(self, graph: Graph, direction: str = '_next'):
         assert direction in ['_next', '_prev']
         self.graph = graph
         self.direction = direction
@@ -201,13 +203,13 @@ class Graph:
             map_arg(to_erase.kwargs, lambda n: None),
         )
 
-    def inserting_before(self, n: Optional[Node] = None):
+    def inserting_before(self, n: Node | None = None):
         if n is None:
             return self.inserting_after(self._root)
         assert n.graph == self, "Node to insert before is not in graph."
         return _InsertPoint(self, n.prepend)
 
-    def inserting_after(self, n: Optional[Node] = None):
+    def inserting_after(self, n: Node | None = None):
         if n is None:
             return self.inserting_before(self._root)
         assert n.graph == self, "Node to insert after is not in graph."
