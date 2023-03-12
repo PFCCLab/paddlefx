@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import List
-
 import paddle
 import paddle.nn
 
 import paddlefx
 
 
-def my_compiler(gl: paddlefx.GraphLayer, example_inputs: List[paddle.Tensor] = None):
+def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
     print("my_compiler() called with FX graph:")
     gl.graph.print_tabular()
     return gl.forward

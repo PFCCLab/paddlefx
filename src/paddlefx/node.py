@@ -90,7 +90,7 @@ class Node:
         self._mark_uses(self.args, self)
         self._mark_uses(self.kwargs, self)
 
-    def replace_all_uses_with(self, replace_with: 'Node'):
+    def replace_all_uses_with(self, replace_with: Node):
         to_process = list(self.users)
         for use_node in to_process:
 

@@ -5,8 +5,6 @@ import inspect
 import operator
 import typing
 
-from typing import Optional
-
 if typing.TYPE_CHECKING:
     from .node import Node
     from .symbolic_trace import Tracer
@@ -54,7 +52,7 @@ class Attribute(Proxy):
         self.root = root
         self.attr = attr
         self.tracer = root.tracer
-        self._node: Optional[Node] = None
+        self._node: Node | None = None
 
     @property
     def node(self):

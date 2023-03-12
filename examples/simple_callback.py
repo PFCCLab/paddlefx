@@ -4,12 +4,11 @@ import dis
 import types
 
 from functools import partial
-from typing import List
 
 import paddlefx
 
 
-def simple_callback(frame: types.FrameType, supported_ops: List[str] = []):
+def simple_callback(frame: types.FrameType, supported_ops: list[str] = []):
     # TODO: add a method for frame skiping
     if frame.f_code.co_name not in supported_ops:
         return None
