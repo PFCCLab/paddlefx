@@ -44,3 +44,5 @@ jobs:
               echo "=================================================="
               python $example_file || exit 1
           done
+          echo "running native interpreter example"
+          (cd examples/native_interpreter; ./build_it.sh && python use_interpreter.py)
