@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import sys
-
-sys.path.append('./build')
-import myinterpreter
 import paddle
+
+from build import myinterpreter
 
 import paddlefx
 
