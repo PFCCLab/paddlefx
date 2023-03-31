@@ -82,6 +82,14 @@ def forward(self, {', '.join(free_variables)}):
         for k, v in gbls.items():
             setattr(cls, k, v)
 
+    def recompile(self) -> None:
+        """Recompile this GraphModule from its ``graph`` attribute.
+
+        This should be called after editing the contained ``graph``, otherwise the
+        generated code of this ``GraphModule`` will be out of date.
+        """
+        self._generate_forward()
+
 
 # copy an attribute value with qualified name 'target' from 'from_module' to 'to_module'
 # This installs empty Modules where none exist yet if they are subpaths of target
