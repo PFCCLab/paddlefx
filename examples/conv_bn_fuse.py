@@ -81,8 +81,7 @@ def fuse(model: paddle.nn.Layer) -> paddle.nn.Layer:
     modules = dict(fx_model.named_sublayers(prefix='', include_self=True))
 
     # TODO: iterating over fx_model.graph.nodes will cause endless loop, need to fix
-    #   for node in fx_model.graph.nodes:
-    for node in list(fx_model.graph.nodes):
+    for node in fx_model.graph.nodes:
         if (
             node.op != 'call_module'
         ):  # If our current node isn't calling a Module then we can ignore it.
