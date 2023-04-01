@@ -8,11 +8,7 @@ from functools import partial
 import paddlefx
 
 
-def simple_callback(frame: types.FrameType, supported_ops: list[str] = []):
-    # TODO: add a method for frame skiping
-    if frame.f_code.co_name not in supported_ops:
-        return None
-
+def simple_callback(frame: types.FrameType):
     print(frame)
     print(dis.disassemble(frame.f_code))
 
@@ -28,7 +24,7 @@ def add(a, b):
 
 
 # simple_callback
-callback = partial(simple_callback, supported_ops=['add'])
+callback = partial(simple_callback)
 with paddlefx.DynamoContext(callback):
     res = add(1, 3)
 print(res)
