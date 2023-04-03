@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import paddle
 import paddle.nn
 
@@ -12,13 +13,14 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
     return gl.forward
 
 
+@paddlefx.optimize(my_compiler)
 def add(a, b):
     print('\tcall add')
     c = a + b
     return c
 
 
-@paddlefx.optimize(my_compiler, supported_ops=['add', 'func'])
+@paddlefx.optimize(my_compiler)
 def func(a, b):
     print('\tcall func')
     c = add(a, b)
@@ -26,6 +28,9 @@ def func(a, b):
     return d
 
 
-res = func(1, 3)
-print(res)
-assert res == 8
+in_a = paddle.rand([3, 4])
+in_b = paddle.rand([3, 4])
+out = paddle.add(in_a, in_b)
+
+res = add(in_a, in_b)
+np.testing.assert_equal(res.numpy(), out.numpy())

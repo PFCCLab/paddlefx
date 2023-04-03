@@ -6,6 +6,8 @@ import types
 
 from typing import Callable
 
+import paddle
+
 from ._eval_frame import set_eval_frame
 from .translator import InstructionTranslator, convert_instruction
 
@@ -42,16 +44,7 @@ class DynamoContext:
 def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
-    supported_ops: list[str] = [],
 ):
-    # NOTE: use supported_ops for frame skiping, eg: supported_ops = ['func', 'add']
-    # TODO: add a method for frame skiping
-    if frame.f_code.co_name not in supported_ops:
-        return None
-
-    print(frame)
-    print(dis.disassemble(frame.f_code))
-
     code = frame.f_code
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
@@ -64,19 +57,39 @@ def _compile(
     return g
 
 
+def has_tensor_in_frame(frame: types.FrameType) -> bool:
+    # NOTE: skip paddle internal code
+    if frame.f_code.co_filename.endswith('paddle/fluid/dygraph/math_op_patch.py'):
+        return False
+    if frame.f_code.co_name == 'in_dygraph_mode':
+        return False
+
+    # print(frame)
+    # print(dis.disassemble(frame.f_code))
+
+    for k, v in frame.f_locals.items():
+        if isinstance(v, paddle.Tensor):
+            return True
+
+    return False
+
+
 def convert_frame_assert(compiler_fn: Callable):
-    def _convert_frame_assert(frame: types.FrameType, supported_ops: list[str] = []):
-        return _compile(frame, compiler_fn, supported_ops)
+    def _convert_frame_assert(frame: types.FrameType):
+        if not has_tensor_in_frame(frame):
+            return None
+
+        return _compile(frame, compiler_fn)
 
     return _convert_frame_assert
 
 
-def optimize(backend=None, supported_ops: list[str] = []):
+def optimize(backend=None):
     def convert_frame(compiler_fn):
         inner_convert = convert_frame_assert(compiler_fn)
 
         def _convert_frame(frame: types.FrameType):
-            result = inner_convert(frame, supported_ops)
+            result = inner_convert(frame)
             return result
 
         return _convert_frame
