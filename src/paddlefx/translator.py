@@ -109,6 +109,31 @@ class InstructionTranslatorBase:
         res = self.output.create_node('call_function', add, args, {})
         self.stack.append(res)
 
+    def BINARY_SUBTRACT(self, inst: Instruction):
+        sub = getattr(operator, 'sub')
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', sub, args, {})
+        self.stack.append(res)
+
+    def BINARY_MULTIPLY(self, inst: Instruction):
+        mul = getattr(operator, 'mul')
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', mul, args, {})
+        self.stack.append(res)
+
+    # NOTE: in fact, paddle doesn't support floor_divide
+    def BINARY_FLOOR_DIVIDE(self, inst: Instruction):
+        floordiv = getattr(operator, 'floordiv')
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', floordiv, args, {})
+        self.stack.append(res)
+
+    def BINARY_TRUE_DIVIDE(self, inst: Instruction):
+        truediv = getattr(operator, 'truediv')
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', truediv, args, {})
+        self.stack.append(res)
+
 
 class InstructionTranslator(InstructionTranslatorBase):
     def __init__(
