@@ -52,12 +52,40 @@ def convert_instruction(i: dis.Instruction):
     )
 
 
+def _binary_constructor(op_name: str):
+    def _binary(self, inst: Instruction):
+        op = getattr(operator, op_name)
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', op, args, {})
+        self.stack.append(res)
+
+    return _binary
+
+
 class InstructionTranslatorMeta(type):
-    def __new__(cls):
-        pass
+    def __new__(cls, *args, **kwargs):
+        # binary op
+        op_mapper = {
+            'add': 'BINARY_ADD',
+            'sub': 'BINARY_SUBTRACT',
+            'mul': 'BINARY_MULTIPLY',
+            'floordiv': 'BINARY_FLOOR_DIVIDE',
+            # NOTE: in fact, paddle doesn't support floor_divide
+            'truediv': 'BINARY_TRUE_DIVIDE',
+            'add': 'BINARY_ADD',
+            'add': 'BINARY_ADD',
+        }
+        inst = type.__new__(cls, *args, **kwargs)
+        for op_name, func_name in op_mapper.items():
+            func = _binary_constructor(op_name)
+            func = types.FunctionType(
+                func.__code__, globals(), None, None, func.__closure__
+            )
+            setattr(inst, func_name, func)
+        return inst
 
 
-class InstructionTranslatorBase:
+class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def __init__(
         self,
         instructions: list[Instruction],
@@ -107,37 +135,6 @@ class InstructionTranslatorBase:
 
     def RETURN_VALUE(self, inst: Instruction):
         self.compile_subgraph()
-
-    def BINARY_ADD(self, inst: Instruction):
-        add = getattr(operator, 'add')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', add, args, {})
-        self.stack.append(res)
-
-    def BINARY_SUBTRACT(self, inst: Instruction):
-        sub = getattr(operator, 'sub')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', sub, args, {})
-        self.stack.append(res)
-
-    def BINARY_MULTIPLY(self, inst: Instruction):
-        mul = getattr(operator, 'mul')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', mul, args, {})
-        self.stack.append(res)
-
-    # NOTE: in fact, paddle doesn't support floor_divide
-    def BINARY_FLOOR_DIVIDE(self, inst: Instruction):
-        floordiv = getattr(operator, 'floordiv')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', floordiv, args, {})
-        self.stack.append(res)
-
-    def BINARY_TRUE_DIVIDE(self, inst: Instruction):
-        truediv = getattr(operator, 'truediv')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', truediv, args, {})
-        self.stack.append(res)
 
     def COMPARE_OP(self, inst: Instruction):
         op_mapper = {
