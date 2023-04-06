@@ -34,3 +34,20 @@ out = paddle.add(in_a, in_b)
 
 res = add(in_a, in_b)
 np.testing.assert_equal(res.numpy(), out.numpy())
+
+
+def foo(a, b):
+    print('\tcall foo')
+    c = a / b
+    d = a * b
+    e = c + d
+    f = e - a
+    return f
+
+
+optimized_foo = paddlefx.optimize(my_compiler)(foo)
+
+original_res = foo(in_a, in_b)
+optimized_res = optimized_foo(in_a, in_b)
+
+np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
