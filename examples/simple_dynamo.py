@@ -42,7 +42,13 @@ def foo(a, b):
     d = a * b
     e = c + d
     f = e - a
-    return f
+    g = f > e
+    h = g < f
+    i = h <= g
+    j = i >= i
+    k = j == i
+    l = j != k
+    return l
 
 
 optimized_foo = paddlefx.optimize(my_compiler)(foo)

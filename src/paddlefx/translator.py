@@ -52,6 +52,11 @@ def convert_instruction(i: dis.Instruction):
     )
 
 
+class InstructionTranslatorMeta(type):
+    def __new__(cls):
+        pass
+
+
 class InstructionTranslatorBase:
     def __init__(
         self,
@@ -132,6 +137,20 @@ class InstructionTranslatorBase:
         truediv = getattr(operator, 'truediv')
         args = list(reversed([self.stack.pop() for _ in range(2)]))
         res = self.output.create_node('call_function', truediv, args, {})
+        self.stack.append(res)
+
+    def COMPARE_OP(self, inst: Instruction):
+        op_mapper = {
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'ge',
+            '<=': 'le',
+            '==': 'eq',
+            '!=': 'ne',
+        }
+        op = getattr(operator, op_mapper[inst.argval])
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', op, args, {})
         self.stack.append(res)
 
 
