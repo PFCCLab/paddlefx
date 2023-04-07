@@ -11,6 +11,7 @@ except ImportError:
 from .eval_frame import DynamoContext, GuardedCode, optimize  # noqa
 from .graph import Graph  # noqa
 from .graph_layer import GraphLayer  # noqa
+from .graph_viewer import FxGraphViewer  # noqa
 from .interpreter import Interpreter  # noqa
 from .node import Node  # noqa
 from .proxy import Proxy  # noqa
