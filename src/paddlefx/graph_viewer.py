@@ -10,12 +10,20 @@ import paddlefx
 from paddlefx.graph import _format_args, _qualified_name
 
 # node op list
-_NODE_OP_LIST = ["placeholder", "call_function", "call_module", "get_param", "output"]
+_NODE_OP_LIST = [
+    "placeholder",
+    "call_function",
+    "call_method",
+    "call_module",
+    "get_param",
+    "output",
+]
 
 # node op color map used in graphviz
 _NODE_OP_COLOR_MAP = {
     "placeholder": "aliceblue",
     "call_function": "beige",
+    "call_method": "goldenrod",
     "call_module": "cadetblue",
     "get_param": "darkgrey",
     "output": "darkturquoise",
