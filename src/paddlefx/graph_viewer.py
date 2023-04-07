@@ -3,16 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 import paddle
+import pydot
 
 import paddlefx
 
 from paddlefx.graph import _format_args, _qualified_name
-
-# try to import pydot
-try:
-    import pydot
-except ImportError:
-    raise ImportError("Please install pydot to use FxGraphViewer")
 
 # node op list
 _NODE_OP_LIST = ["placeholder", "call_function", "call_module", "get_param", "output"]
@@ -97,16 +92,3 @@ class FxGraphViewer:
 
     def get_graph_dot(self) -> pydot.Dot:
         return self._to_dot(self.traced_layer, self.model_name)
-
-
-if __name__ == "__main__":
-    from paddle.vision.models import resnet18
-
-    from paddlefx import symbolic_trace
-
-    net = resnet18()
-    traced_layer = symbolic_trace(net)
-
-    g = FxGraphViewer(traced_layer, "resnet18")
-    # print(g)
-    g.get_graph_dot().write_svg("resnet18_graph.svg")
