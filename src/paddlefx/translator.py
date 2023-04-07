@@ -62,26 +62,58 @@ def _binary_constructor(op_name: str):
     return _binary
 
 
+def _unary_constructor(op_name: str):
+    def _unary(self, inst: Instruction):
+        op = getattr(operator, op_name)
+        res = self.output.create_node('call_function', op, self.stack.pop(), {})
+        self.stack.append(res)
+
+    return _unary
+
+
+BINARY_MAPPER = {
+    'add': 'BINARY_ADD',
+    'sub': 'BINARY_SUBTRACT',
+    'mul': 'BINARY_MULTIPLY',
+    'floordiv': 'BINARY_FLOOR_DIVIDE',
+    # NOTE: in fact, paddle doesn't support floor_divide
+    'truediv': 'BINARY_TRUE_DIVIDE',
+    'add': 'BINARY_ADD',
+    'mod': 'BINARY_MOD',
+    'and_': 'BINARY_AND',
+    'or_': 'BINARY_OR',
+    'xor_': 'BINARY_XOR',
+    'pow': 'BINARY_POWER',
+    'matmul': 'BINARY_MATMUL',
+    'getitem': 'BINARY_GETITEM',
+    'iadd': 'INPLACE_ADD',
+    'iand': 'INPLACE_AND',
+    'ifloordiv': 'INPLACE_FLOOR_DIVIDE',
+    'imod': 'INPLACE_MOD',
+    'imul': 'INPLACE_MULTIPLY',
+    'imatmul': 'INPLACE_MATRIX_MULTIPLY',
+    'ior': 'INPLACE_OR',
+    'ipow': 'INPLACE_POWER',
+    'isub': 'INPLACE_SUBTRACT',
+    'itruediv': 'INPLACE_TRUE_DIVIDE',
+    'ixor': 'INPLACE_XOR',
+}
+
+UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
+
+
 class InstructionTranslatorMeta(type):
     def __new__(cls, *args, **kwargs):
-        # binary op
-        op_mapper = {
-            'add': 'BINARY_ADD',
-            'sub': 'BINARY_SUBTRACT',
-            'mul': 'BINARY_MULTIPLY',
-            'floordiv': 'BINARY_FLOOR_DIVIDE',
-            # NOTE: in fact, paddle doesn't support floor_divide
-            'truediv': 'BINARY_TRUE_DIVIDE',
-            'add': 'BINARY_ADD',
-            'add': 'BINARY_ADD',
-        }
         inst = type.__new__(cls, *args, **kwargs)
-        for op_name, func_name in op_mapper.items():
-            func = _binary_constructor(op_name)
-            func = types.FunctionType(
-                func.__code__, globals(), None, None, func.__closure__
-            )
-            setattr(inst, func_name, func)
+        mappers = [BINARY_MAPPER, UNARY_MAPPER]
+        constructors = [_binary_constructor, _unary_constructor]
+        for mapper, constructor in zip(mappers, constructors):
+            for op_name, func_name in mapper.items():
+                func = constructor(op_name)
+                func = types.FunctionType(
+                    func.__code__, globals(), None, None, func.__closure__
+                )
+                setattr(inst, func_name, func)
         return inst
 
 
@@ -127,6 +159,15 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def POP_TOP(self, inst: Instruction):
         pass
 
+    def POP_JUMP_IF_FALSE(self, inst: Instruction):
+        pass
+
+    def MAKE_FUNCTION(self, inst: Instruction):
+        pass
+
+    def STORE_SUBSCR(self, inst: Instruction):
+        self.f_locals[inst.argval] = self.stack.pop()
+
     def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()
 
@@ -144,6 +185,8 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             '<=': 'le',
             '==': 'eq',
             '!=': 'ne',
+            'is': 'is_',
+            'is not': 'is_not',
         }
         op = getattr(operator, op_mapper[inst.argval])
         args = list(reversed([self.stack.pop() for _ in range(2)]))

@@ -58,14 +58,25 @@ optimized_res = optimized_foo(in_a, in_b)
 
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
 
-# in_a = paddle.randn([1])
-# def foo(a):
-#     b = not a
-#     return b
-#
-# optimized_foo = paddlefx.optimize(my_compiler)(foo)
+dtype = 'float32'
+in_a = paddle.to_tensor([1], dtype=dtype)
+in_b = paddle.to_tensor([0], dtype=dtype)
 
-# original_res = foo(in_a)
-# optimized_res = optimized_foo(in_a)
 
-# np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
+def inplace(a, b):
+    print('\tcall inplace')
+    a -= b
+    a += b
+    a *= b
+    a /= b
+    a **= b
+    a @= b
+    return a
+
+
+optimized_foo = paddlefx.optimize(my_compiler)(inplace)
+
+original_res = inplace(in_a, in_b)
+optimized_res = optimized_foo(in_a, in_b)
+
+np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
