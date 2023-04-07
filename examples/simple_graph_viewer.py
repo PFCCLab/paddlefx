@@ -8,4 +8,4 @@ net = resnet18()
 traced_layer = symbolic_trace(net)
 
 g = FxGraphViewer(traced_layer, "resnet18")
-g.get_graph_dot().write_svg("resnet.svg")
+g.get_graph_dot().write_raw("resnet.dot")
