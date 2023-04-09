@@ -71,6 +71,17 @@ def _unary_constructor(op_name: str):
     return _unary
 
 
+def _f(self, inst):
+    pass
+
+
+def _not_implemented(op_name):
+    def _not_impl(self, inst):
+        raise NotImplementedError()
+
+    return _not_impl
+
+
 BINARY_MAPPER = {
     'add': 'BINARY_ADD',
     'sub': 'BINARY_SUBTRACT',
@@ -78,35 +89,51 @@ BINARY_MAPPER = {
     'floordiv': 'BINARY_FLOOR_DIVIDE',
     # NOTE: in fact, paddle doesn't support floor_divide
     'truediv': 'BINARY_TRUE_DIVIDE',
-    'add': 'BINARY_ADD',
     'mod': 'BINARY_MOD',
-    'and_': 'BINARY_AND',
-    'or_': 'BINARY_OR',
-    'xor_': 'BINARY_XOR',
     'pow': 'BINARY_POWER',
     'matmul': 'BINARY_MATMUL',
     'getitem': 'BINARY_GETITEM',
+    'lshift': 'BINARY_LSHIFT',
+    'rshift': 'BINARY_RSHIFT',
     'iadd': 'INPLACE_ADD',
-    'iand': 'INPLACE_AND',
     'ifloordiv': 'INPLACE_FLOOR_DIVIDE',
     'imod': 'INPLACE_MOD',
     'imul': 'INPLACE_MULTIPLY',
     'imatmul': 'INPLACE_MATRIX_MULTIPLY',
-    'ior': 'INPLACE_OR',
     'ipow': 'INPLACE_POWER',
     'isub': 'INPLACE_SUBTRACT',
     'itruediv': 'INPLACE_TRUE_DIVIDE',
-    'ixor': 'INPLACE_XOR',
 }
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
+
+PASS_FUNC = [
+    'LOAD_GLOBAL',
+    'LOAD_METHOD',
+    'CALL_METHOD',
+    'CALL_FUNCTION',
+    'CALL_FUNCTION_KW',
+    'POP_TOP',
+    'MAKE_FUNCTION',
+    'BINARY_SUBSCR',
+    'LOAD_DEREF',
+]
+
+NOT_IMPLEMENT = {
+    'and_': 'BINARY_AND',
+    'or_': 'BINARY_OR',
+    'xor': 'BINARY_XOR',
+    'iand': 'INPLACE_AND',
+    'ior': 'INPLACE_OR',
+    'ixor': 'INPLACE_XOR',
+}
 
 
 class InstructionTranslatorMeta(type):
     def __new__(cls, *args, **kwargs):
         inst = type.__new__(cls, *args, **kwargs)
-        mappers = [BINARY_MAPPER, UNARY_MAPPER]
-        constructors = [_binary_constructor, _unary_constructor]
+        mappers = [BINARY_MAPPER, UNARY_MAPPER, NOT_IMPLEMENT]
+        constructors = [_binary_constructor, _unary_constructor, _not_implemented]
         for mapper, constructor in zip(mappers, constructors):
             for op_name, func_name in mapper.items():
                 func = constructor(op_name)
@@ -114,6 +141,8 @@ class InstructionTranslatorMeta(type):
                     func.__code__, globals(), None, None, func.__closure__
                 )
                 setattr(inst, func_name, func)
+        for name in PASS_FUNC:
+            setattr(inst, name, _f)
         return inst
 
 
@@ -132,7 +161,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
         self.f_locals = {}
         self.stack = []
-        for k, v in frame.f_locals.items():
+        for k, _ in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
 
     def call_user_compiler(self, gl):
@@ -147,26 +176,14 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
         self.call_user_compiler(gl)
 
-    def LOAD_GLOBAL(self, inst: Instruction):
+    def POP_JUMP_IF_FALSE(self, inst: Instruction):
+        pass
+
+    def POP_JUMP_IF_TRUE(self, inst: Instruction):
         pass
 
     def LOAD_CONST(self, inst: Instruction):
         pass
-
-    def CALL_FUNCTION(self, inst: Instruction):
-        pass
-
-    def POP_TOP(self, inst: Instruction):
-        pass
-
-    def POP_JUMP_IF_FALSE(self, inst: Instruction):
-        pass
-
-    def MAKE_FUNCTION(self, inst: Instruction):
-        pass
-
-    def STORE_SUBSCR(self, inst: Instruction):
-        self.f_locals[inst.argval] = self.stack.pop()
 
     def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()
@@ -204,10 +221,13 @@ class InstructionTranslator(InstructionTranslatorBase):
         super().__init__(instructions, frame, compiler_fn, OutputGraph())
 
     def step(self, inst: Instruction):
+        print(inst.opname)
         if not hasattr(self, inst.opname):
             raise Exception(f"missing: {inst.opname}")
         getattr(self, inst.opname)(inst)
 
     def run(self):
+        for i in self.instructions:
+            print(i)
         for inst in self.instructions:
             self.step(inst)

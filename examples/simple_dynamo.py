@@ -37,7 +37,7 @@ np.testing.assert_equal(res.numpy(), out.numpy())
 
 
 def foo(a, b):
-    print('\tcall foo')
+    # print('\tcall foo')
     c = a / b
     d = a * b
     e = c + d
@@ -64,7 +64,7 @@ in_b = paddle.to_tensor([0], dtype=dtype)
 
 
 def inplace(a, b):
-    print('\tcall inplace')
+    # print('\tcall inplace')
     a -= b
     a += b
     a *= b
