@@ -44,6 +44,8 @@ class Proxy:
         current_instruction = instructions[current_instruction_idx]
         if current_instruction.opname == "UNPACK_SEQUENCE":
             return (self[i] for i in range(current_instruction.argval))
+        elif current_instruction.opname == "GET_ITER":
+            raise NotImplementedError()
         raise ValueError("Cannot find UNPACK_SEQUENCE instruction")
 
 

@@ -52,7 +52,101 @@ def convert_instruction(i: dis.Instruction):
     )
 
 
-class InstructionTranslatorBase:
+def _binary_constructor(op_name: str):
+    def _binary(self, inst: Instruction):
+        op = getattr(operator, op_name)
+        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', op, args, {})
+        self.stack.append(res)
+
+    return _binary
+
+
+def _unary_constructor(op_name: str):
+    def _unary(self, inst: Instruction):
+        op = getattr(operator, op_name)
+        res = self.output.create_node('call_function', op, self.stack.pop(), {})
+        self.stack.append(res)
+
+    return _unary
+
+
+def _f(self, inst):
+    pass
+
+
+def _not_implemented(op_name):
+    def _not_impl(self, inst):
+        raise NotImplementedError()
+
+    return _not_impl
+
+
+BINARY_MAPPER = {
+    'add': 'BINARY_ADD',
+    'sub': 'BINARY_SUBTRACT',
+    'mul': 'BINARY_MULTIPLY',
+    'floordiv': 'BINARY_FLOOR_DIVIDE',
+    # NOTE: in fact, paddle doesn't support floor_divide
+    'truediv': 'BINARY_TRUE_DIVIDE',
+    'mod': 'BINARY_MOD',
+    'pow': 'BINARY_POWER',
+    'matmul': 'BINARY_MATMUL',
+    'getitem': 'BINARY_GETITEM',
+    'lshift': 'BINARY_LSHIFT',
+    'rshift': 'BINARY_RSHIFT',
+    'iadd': 'INPLACE_ADD',
+    'ifloordiv': 'INPLACE_FLOOR_DIVIDE',
+    'imod': 'INPLACE_MOD',
+    'imul': 'INPLACE_MULTIPLY',
+    'imatmul': 'INPLACE_MATRIX_MULTIPLY',
+    'ipow': 'INPLACE_POWER',
+    'isub': 'INPLACE_SUBTRACT',
+    'itruediv': 'INPLACE_TRUE_DIVIDE',
+}
+
+UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
+
+PASS_FUNC = [
+    'LOAD_GLOBAL',
+    'LOAD_METHOD',
+    'CALL_METHOD',
+    'CALL_FUNCTION',
+    'CALL_FUNCTION_KW',
+    'POP_TOP',
+    'MAKE_FUNCTION',
+    'BINARY_SUBSCR',
+    'LOAD_DEREF',
+]
+
+NOT_IMPLEMENT = {
+    'and_': 'BINARY_AND',
+    'or_': 'BINARY_OR',
+    'xor': 'BINARY_XOR',
+    'iand': 'INPLACE_AND',
+    'ior': 'INPLACE_OR',
+    'ixor': 'INPLACE_XOR',
+}
+
+
+class InstructionTranslatorMeta(type):
+    def __new__(cls, *args, **kwargs):
+        inst = type.__new__(cls, *args, **kwargs)
+        mappers = [BINARY_MAPPER, UNARY_MAPPER, NOT_IMPLEMENT]
+        constructors = [_binary_constructor, _unary_constructor, _not_implemented]
+        for mapper, constructor in zip(mappers, constructors):
+            for op_name, func_name in mapper.items():
+                func = constructor(op_name)
+                func = types.FunctionType(
+                    func.__code__, globals(), None, None, func.__closure__
+                )
+                setattr(inst, func_name, func)
+        for name in PASS_FUNC:
+            setattr(inst, name, _f)
+        return inst
+
+
+class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def __init__(
         self,
         instructions: list[Instruction],
@@ -67,7 +161,7 @@ class InstructionTranslatorBase:
 
         self.f_locals = {}
         self.stack = []
-        for k, v in frame.f_locals.items():
+        for k, _ in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
 
     def call_user_compiler(self, gl):
@@ -82,16 +176,13 @@ class InstructionTranslatorBase:
         gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
         self.call_user_compiler(gl)
 
-    def LOAD_GLOBAL(self, inst: Instruction):
+    def POP_JUMP_IF_FALSE(self, inst: Instruction):
+        pass
+
+    def POP_JUMP_IF_TRUE(self, inst: Instruction):
         pass
 
     def LOAD_CONST(self, inst: Instruction):
-        pass
-
-    def CALL_FUNCTION(self, inst: Instruction):
-        pass
-
-    def POP_TOP(self, inst: Instruction):
         pass
 
     def STORE_FAST(self, inst: Instruction):
@@ -103,35 +194,20 @@ class InstructionTranslatorBase:
     def RETURN_VALUE(self, inst: Instruction):
         self.compile_subgraph()
 
-    def BINARY_ADD(self, inst: Instruction):
-        add = getattr(operator, 'add')
+    def COMPARE_OP(self, inst: Instruction):
+        op_mapper = {
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'ge',
+            '<=': 'le',
+            '==': 'eq',
+            '!=': 'ne',
+            'is': 'is_',
+            'is not': 'is_not',
+        }
+        op = getattr(operator, op_mapper[inst.argval])
         args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', add, args, {})
-        self.stack.append(res)
-
-    def BINARY_SUBTRACT(self, inst: Instruction):
-        sub = getattr(operator, 'sub')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', sub, args, {})
-        self.stack.append(res)
-
-    def BINARY_MULTIPLY(self, inst: Instruction):
-        mul = getattr(operator, 'mul')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', mul, args, {})
-        self.stack.append(res)
-
-    # NOTE: in fact, paddle doesn't support floor_divide
-    def BINARY_FLOOR_DIVIDE(self, inst: Instruction):
-        floordiv = getattr(operator, 'floordiv')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', floordiv, args, {})
-        self.stack.append(res)
-
-    def BINARY_TRUE_DIVIDE(self, inst: Instruction):
-        truediv = getattr(operator, 'truediv')
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', truediv, args, {})
+        res = self.output.create_node('call_function', op, args, {})
         self.stack.append(res)
 
 
@@ -145,10 +221,13 @@ class InstructionTranslator(InstructionTranslatorBase):
         super().__init__(instructions, frame, compiler_fn, OutputGraph())
 
     def step(self, inst: Instruction):
+        print(inst.opname)
         if not hasattr(self, inst.opname):
             raise Exception(f"missing: {inst.opname}")
         getattr(self, inst.opname)(inst)
 
     def run(self):
+        for i in self.instructions:
+            print(i)
         for inst in self.instructions:
             self.step(inst)
