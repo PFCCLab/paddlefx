@@ -11,6 +11,7 @@ import paddle
 import paddle.nn
 
 from .graph_layer import GraphLayer
+from .proxy import Proxy
 from .symbolic_trace import Tracer
 
 
@@ -83,16 +84,38 @@ class InstructionTranslatorBase:
         self.call_user_compiler(gl)
 
     def LOAD_GLOBAL(self, inst: Instruction):
-        pass
+        name = inst.argval
+        if name in self.frame.f_globals:
+            self.stack.append(self.frame.f_globals[name])
+        elif name in self.frame.f_builtins:
+            self.stack.append(self.frame.f_builtins[name])
+        else:
+            raise Exception(f"name '{name}' is not found")
 
     def LOAD_CONST(self, inst: Instruction):
-        pass
+        value = inst.argval
+        self.stack.append(value)
 
     def CALL_FUNCTION(self, inst: Instruction):
-        pass
+        args = [self.stack.pop() for _ in range(inst.argval)]
+        fn = self.stack.pop()
+
+        is_custom_call = False
+        for arg in args:
+            if isinstance(arg, (Proxy, paddle.Tensor)):
+                is_custom_call = True
+                break
+
+        # TODO: add `self.call_function` to handle more functions
+        if fn == print:
+            self.stack.append(None)
+        elif is_custom_call:
+            raise NotImplementedError(f"custom_call is not supported")
+        else:
+            raise NotImplementedError(f"call function {fn} is not supported")
 
     def POP_TOP(self, inst: Instruction):
-        pass
+        value = self.stack.pop()
 
     def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()

@@ -28,7 +28,7 @@ repos:
           - "10"
           - "--expand-star-imports"
           - "--remove-duplicate-keys"
-          - "--remove-unused-variables"
+          # - "--remove-unused-variables"
           - "--remove-all-unused-imports"
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.0.254
