@@ -72,10 +72,6 @@ def _unary_constructor(op_name: str):
     return _unary
 
 
-def _f(self, inst):
-    pass
-
-
 def _not_implemented(op_name):
     def _not_impl(self, inst):
         raise NotImplementedError()
@@ -108,18 +104,6 @@ BINARY_MAPPER = {
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
 
-PASS_FUNC = [
-    'LOAD_GLOBAL',
-    'LOAD_METHOD',
-    'CALL_METHOD',
-    'CALL_FUNCTION',
-    'CALL_FUNCTION_KW',
-    'POP_TOP',
-    'MAKE_FUNCTION',
-    'BINARY_SUBSCR',
-    'LOAD_DEREF',
-]
-
 NOT_IMPLEMENT = {
     'and_': 'BINARY_AND',
     'or_': 'BINARY_OR',
@@ -142,8 +126,6 @@ class InstructionTranslatorMeta(type):
                     func.__code__, globals(), None, None, func.__closure__
                 )
                 setattr(inst, func_name, func)
-        for name in PASS_FUNC:
-            setattr(inst, name, _f)
         return inst
 
 
