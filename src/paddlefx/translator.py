@@ -235,13 +235,10 @@ class InstructionTranslator(InstructionTranslatorBase):
         super().__init__(instructions, frame, compiler_fn, OutputGraph())
 
     def step(self, inst: Instruction):
-        print(inst.opname)
         if not hasattr(self, inst.opname):
             raise Exception(f"missing: {inst.opname}")
         getattr(self, inst.opname)(inst)
 
     def run(self):
-        for i in self.instructions:
-            print(i)
         for inst in self.instructions:
             self.step(inst)
