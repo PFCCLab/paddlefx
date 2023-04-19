@@ -11,6 +11,7 @@ import paddle
 import paddle.nn
 
 from .graph_layer import GraphLayer
+from .proxy import Proxy
 from .symbolic_trace import Tracer
 
 
@@ -71,10 +72,6 @@ def _unary_constructor(op_name: str):
     return _unary
 
 
-def _f(self, inst):
-    pass
-
-
 def _not_implemented(op_name):
     def _not_impl(self, inst):
         raise NotImplementedError()
@@ -107,18 +104,6 @@ BINARY_MAPPER = {
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
 
-PASS_FUNC = [
-    'LOAD_GLOBAL',
-    'LOAD_METHOD',
-    'CALL_METHOD',
-    'CALL_FUNCTION',
-    'CALL_FUNCTION_KW',
-    'POP_TOP',
-    'MAKE_FUNCTION',
-    'BINARY_SUBSCR',
-    'LOAD_DEREF',
-]
-
 NOT_IMPLEMENT = {
     'and_': 'BINARY_AND',
     'or_': 'BINARY_OR',
@@ -141,8 +126,6 @@ class InstructionTranslatorMeta(type):
                     func.__code__, globals(), None, None, func.__closure__
                 )
                 setattr(inst, func_name, func)
-        for name in PASS_FUNC:
-            setattr(inst, name, _f)
         return inst
 
 
@@ -176,6 +159,15 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
         self.call_user_compiler(gl)
 
+    def LOAD_GLOBAL(self, inst: Instruction):
+        name = inst.argval
+        if name in self.frame.f_globals:
+            self.stack.append(self.frame.f_globals[name])
+        elif name in self.frame.f_builtins:
+            self.stack.append(self.frame.f_builtins[name])
+        else:
+            raise Exception(f"name '{name}' is not found")
+
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
         pass
 
@@ -183,7 +175,29 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         pass
 
     def LOAD_CONST(self, inst: Instruction):
-        pass
+        value = inst.argval
+        self.stack.append(value)
+
+    def CALL_FUNCTION(self, inst: Instruction):
+        args = [self.stack.pop() for _ in range(inst.argval)]
+        fn = self.stack.pop()
+
+        is_custom_call = False
+        for arg in args:
+            if isinstance(arg, (Proxy, paddle.Tensor)):
+                is_custom_call = True
+                break
+
+        # TODO: add `self.call_function` to handle more functions
+        if fn == print:
+            self.stack.append(None)
+        elif is_custom_call:
+            raise NotImplementedError(f"custom_call is not supported")
+        else:
+            raise NotImplementedError(f"call function {fn} is not supported")
+
+    def POP_TOP(self, inst: Instruction):
+        value = self.stack.pop()
 
     def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()
@@ -221,13 +235,10 @@ class InstructionTranslator(InstructionTranslatorBase):
         super().__init__(instructions, frame, compiler_fn, OutputGraph())
 
     def step(self, inst: Instruction):
-        print(inst.opname)
         if not hasattr(self, inst.opname):
             raise Exception(f"missing: {inst.opname}")
         getattr(self, inst.opname)(inst)
 
     def run(self):
-        for i in self.instructions:
-            print(i)
         for inst in self.instructions:
             self.step(inst)

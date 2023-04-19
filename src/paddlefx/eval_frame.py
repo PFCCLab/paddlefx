@@ -67,7 +67,8 @@ def has_tensor_in_frame(frame: types.FrameType) -> bool:
     # print(frame)
     # print(dis.disassemble(frame.f_code))
 
-    for k, v in frame.f_locals.items():
+    for v in frame.f_locals.values():
+        # TODO: supprt containers
         if isinstance(v, paddle.Tensor):
             return True
 
