@@ -17,4 +17,6 @@ traced_output = traced_layer(example_input)
 assert paddle.allclose(orig_output, traced_output)
 
 print(f"python IR for {type(net).__name__}")
-traced_layer.graph.print_tabular()
+traced_layer.graph.print_tabular(print_mode="tabular")
+traced_layer.graph.print_tabular(print_mode="rich")
+traced_layer.graph.print_tabular(print_mode="raw")
