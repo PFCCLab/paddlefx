@@ -67,11 +67,11 @@ class GraphLayer(paddle.nn.Layer):
     def _generate_forward(self):
         body, free_variables = self.graph.python_code(root_module='self')
         body = '\n'.join('    ' + line for line in body.split('\n')) + '\n'
-        self.src = (
-            f"def forward(self, {', '.join(free_variables)}):\n"
-            f"    self = self.root\n"
-            f"{body}"
-        )
+        self.src = f"""\
+def forward(self, {', '.join(free_variables)}):
+    self = self.root
+{body}
+"""
         # print(self.src)
         # install forward into the classes dictionary, this is what normally happens in the
         # 'class' statement
