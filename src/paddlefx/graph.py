@@ -277,7 +277,7 @@ class Graph:
         src = ''.join(body)
         return src, free_vars
 
-    def print_tabular(self, print_mode="tablulate"):
+    def print_tabular(self, print_mode="tabulate"):
         """Prints the intermediate representation of the graph in tabular
         format.
 
