@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import paddle
+import paddle.nn
 import pydot
 
 import paddlefx
