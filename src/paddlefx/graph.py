@@ -283,7 +283,7 @@ class Graph:
 
         Note that this API requires the ``tabulate`` module to be installed.
         """
-        assert print_mode in ["raw", "tablulate", "rich"]
+        assert print_mode in ["raw", "tabulate", "rich"]
         if print_mode == "raw":
             node_specs = [
                 " ".join(
@@ -293,7 +293,7 @@ class Graph:
             ]
             print(" ".join(['opcode', 'name', 'target', 'args', 'kwargs']))
             print("\n".join(node_specs))
-        elif print_mode == "tablulate":
+        elif print_mode == "tabulate":
             try:
                 from tabulate import tabulate
 
