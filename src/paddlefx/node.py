@@ -60,7 +60,6 @@ class Node:
     def _remove_from_list(self):
         p, n = self._prev, self._next
         p._next, n._prev = n, p
-        self._prev, self._next = self, self
 
     def _mark_uses(self, a, user):
         def add_use(n: Node):
