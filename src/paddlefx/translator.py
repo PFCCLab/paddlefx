@@ -144,8 +144,11 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
         self.f_locals = {}
         self.stack = []
-        for k, _ in frame.f_locals.items():
-            self.f_locals[k] = self.output._proxy_placeholder(k)
+        for k, v in frame.f_locals.items():
+            if k == "self":
+                self.f_locals[k] = v
+            else:
+                self.f_locals[k] = self.output._proxy_placeholder(k)
 
     def call_user_compiler(self, gl):
         compiled_fn = self.compiler_fn(gl)
@@ -155,9 +158,44 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         # add output node
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
-
         gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
+        self.output.graph.print_tabular()
         self.call_user_compiler(gl)
+
+    def pop(self):
+        return self.stack.pop()
+
+    def popn(self, n):
+        if n:
+            return [self.pop() for _ in range(n)]
+        else:
+            return []
+
+    def call_function(self, fn, args, kwargs):
+        mode_functions = [
+            paddle.framework.in_dygraph_mode,
+            paddle.framework._in_legacy_dygraph,
+            paddle.framework.in_dynamic_mode,
+        ]
+        is_custom_call = False
+        for arg in args:
+            if isinstance(arg, (Proxy, paddle.Tensor)):
+                is_custom_call = True
+                break
+        for arg in kwargs:
+            if isinstance(arg, (Proxy, paddle.Tensor)):
+                is_custom_call = True
+                break
+
+        # TODO: add `self.call_function` to handle more functions
+        if fn == print:
+            self.stack.append(None)
+        elif fn in mode_functions:
+            self.stack.append(fn())
+        elif is_custom_call:
+            raise NotImplementedError(f"custom_call is not supported")
+        else:
+            raise NotImplementedError(f"call function {fn} is not supported")
 
     def LOAD_GLOBAL(self, inst: Instruction):
         name = inst.argval
@@ -178,23 +216,40 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         value = inst.argval
         self.stack.append(value)
 
+    def LOAD_ATTR(self, inst: Instruction):
+        root = self.stack.pop()
+        if hasattr(root, inst.argval):
+            value = getattr(root, inst.argval)
+            self.stack.append(value)
+        else:
+            self.stack.append(None)
+
+    def LOAD_METHOD(self, inst: Instruction):
+        value = getattr(self.stack.pop(), inst.argval)
+        self.stack.append(value)
+
+    def CALL_METHOD(self, inst: Instruction):
+        args = [self.stack.pop() for _ in range(inst.argval)]
+        fn = self.stack.pop()
+        res = self.output.create_node('call_function', fn, args, {})
+        self.stack.append(res)
+
     def CALL_FUNCTION(self, inst: Instruction):
         args = [self.stack.pop() for _ in range(inst.argval)]
         fn = self.stack.pop()
+        self.call_function(fn, args, {})
 
-        is_custom_call = False
-        for arg in args:
-            if isinstance(arg, (Proxy, paddle.Tensor)):
-                is_custom_call = True
-                break
+    def CALL_FUNCTION_KW(self, inst: Instruction):
+        argnames = self.stack.pop()
+        args = self.popn(inst.argval)
+        fn = self.stack.pop()
+        args, kwargs = args[: -len(argnames)], args[-len(argnames) :]
+        kwargs = dict(zip(argnames, kwargs))
+        self.call_function(fn, args, kwargs)
 
-        # TODO: add `self.call_function` to handle more functions
-        if fn == print:
-            self.stack.append(None)
-        elif is_custom_call:
-            raise NotImplementedError(f"custom_call is not supported")
-        else:
-            raise NotImplementedError(f"call function {fn} is not supported")
+    def BUILD_LIST(self, inst):
+        items = self.popn(inst.argval)
+        self.stack.append(items)
 
     def POP_TOP(self, inst: Instruction):
         value = self.stack.pop()
@@ -241,4 +296,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
+            print(inst)
             self.step(inst)

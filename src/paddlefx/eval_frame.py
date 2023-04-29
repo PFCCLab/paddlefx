@@ -7,6 +7,7 @@ import types
 from typing import Callable
 
 import paddle
+import paddle.nn
 
 from ._eval_frame import set_eval_frame
 from .translator import InstructionTranslator, convert_instruction
@@ -24,6 +25,7 @@ class DynamoContext:
 
     def __enter__(self):
         self.old_callback = set_eval_frame(self.callback)
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         set_eval_frame(self.old_callback)
@@ -45,7 +47,11 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ):
+    paddle_ops = paddle.__all__ + paddle.nn.__all__
+    paddle_ops += ["_conv_nd", "pad"]
     code = frame.f_code
+    if code.co_name in paddle_ops:
+        return GuardedCode(code)
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
     tracer = InstructionTranslator(instructions, frame, compiler_fn)

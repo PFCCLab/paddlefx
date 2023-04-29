@@ -21,10 +21,14 @@ def snake_case(s):
 
 
 def _qualified_name(func):
+    if hasattr(func, '__name__'):
+        name = func.__name__
+    else:
+        name = func.__class__.__name__
+
     # things like getattr just appear in builtins
-    if getattr(builtins, func.__name__, None) is func:
-        return func.__name__
-    name = func.__name__
+    if getattr(builtins, name, None) is func:
+        return name
     module = _find_module_of_method(func)
     return f'{module}.{name}'
 
@@ -42,7 +46,10 @@ def _is_illegal_name(name: str, obj: Any) -> bool:
 
 
 def _find_module_of_method(orig_method):
-    name = orig_method.__name__
+    if hasattr(orig_method, '__name__'):
+        name = orig_method.__name__
+    else:
+        name = orig_method.__class__.__name__
     module = orig_method.__module__
     if module is not None:
         return module
@@ -161,6 +168,8 @@ class Graph:
     def _name(self, op):
         if hasattr(op, '__name__'):
             op = op.__name__
+        elif hasattr(op, '__class__'):
+            op = op.__class__.__name__
 
         if _is_magic(op):
             op = op[2:-2]
@@ -281,7 +290,9 @@ class Graph:
         """Prints the intermediate representation of the graph in tabular
         format.
 
-        Note that this API requires the ``tabulate`` module to be installed.
+        Note that this API allows users to choose between using the ``raw``,
+        ``tabulate`` or ``rich`` mode. If the user specifies a mode that is not
+        installed, the API will automatically fall back on the ``raw`` mode.
         """
         assert print_mode in ["raw", "tabulate", "rich"]
         if print_mode == "raw":

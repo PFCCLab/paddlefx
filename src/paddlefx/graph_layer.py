@@ -82,6 +82,11 @@ def forward(self, {', '.join(free_variables)}):
         for k, v in gbls.items():
             setattr(cls, k, v)
 
+    def get_source(self, update: bool = True):
+        if update:
+            self._generate_forward()
+        return self.src
+
 
 # copy an attribute value with qualified name 'target' from 'from_module' to 'to_module'
 # This installs empty Modules where none exist yet if they are subpaths of target

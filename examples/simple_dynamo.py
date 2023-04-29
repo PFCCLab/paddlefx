@@ -31,6 +31,7 @@ def func(a, b):
 in_a = paddle.rand([3, 4])
 in_b = paddle.rand([3, 4])
 out = paddle.add(in_a, in_b)
+# out = paddle.add(out, out)
 
 res = add(in_a, in_b)
 np.testing.assert_equal(res.numpy(), out.numpy())
@@ -79,4 +80,18 @@ optimized_foo = paddlefx.optimize(my_compiler)(inplace)
 original_res = inplace(in_a, in_b)
 optimized_res = optimized_foo(in_a, in_b)
 
+np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
+
+
+def func2(a, b):
+    print('\tcall func')
+    c = paddle.add(a, b)
+    d = paddle.multiply(c, c)
+    return d
+
+
+optimized_func = paddlefx.optimize(my_compiler)(func2)
+
+original_res = func2(in_a, in_b)
+optimized_res = optimized_func(in_a, in_b)
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
