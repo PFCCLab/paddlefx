@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import dis
+import inspect
 import types
 
 from typing import Callable
@@ -47,9 +48,17 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ):
-    paddle_ops = paddle.__all__ + paddle.nn.__all__
+    paddle_modules = [
+        "paddle.tensor.math",
+        # TODO(zrr1999): add more modules
+    ]
+    module = inspect.getmodule(frame)
+    if module is None:
+        raise RuntimeError('Cannot find module for frame')
+    package_name = module.__name__
+
     code = frame.f_code
-    if code.co_name in paddle_ops:
+    if package_name in paddle_modules:
         return GuardedCode(code)
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
