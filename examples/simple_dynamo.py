@@ -92,19 +92,17 @@ class TestClass:
         c = c[0]
         return c['a'] * c['b']
 
+    def forward(self, a, b):
+        c = self.add(a, b)
+        d = self.multiply(c, c)
+        return d
+
 
 test_obj = TestClass()
+func = test_obj.forward
 
+optimized_func = paddlefx.optimize(my_compiler)(func)
 
-def func2(a, b):
-    print('\tcall func')
-    c = test_obj.add(a, b)
-    d = test_obj.multiply(c, c)
-    return d
-
-
-optimized_func = paddlefx.optimize(my_compiler)(func2)
-
-original_res = func2(in_a, in_b)
+original_res = func(in_a, in_b)
 optimized_res = optimized_func(in_a, in_b)
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
