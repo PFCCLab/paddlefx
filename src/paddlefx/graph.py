@@ -168,8 +168,6 @@ class Graph:
     def _name(self, op):
         if hasattr(op, '__name__'):
             op = op.__name__
-        elif hasattr(op, '__class__'):
-            op = op.__class__.__name__
 
         if _is_magic(op):
             op = op[2:-2]
