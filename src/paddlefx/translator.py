@@ -56,7 +56,7 @@ def convert_instruction(i: dis.Instruction):
 def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        args = list(reversed([self.pop() for _ in range(2)]))
         res = self.output.create_node('call_function', op, args, {})
         self.stack.append(res)
 
@@ -66,7 +66,7 @@ def _binary_constructor(op_name: str):
 def _unary_constructor(op_name: str):
     def _unary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        res = self.output.create_node('call_function', op, self.stack.pop(), {})
+        res = self.output.create_node('call_function', op, self.pop(), {})
         self.stack.append(res)
 
     return _unary
@@ -219,7 +219,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         self.stack.append(value)
 
     def LOAD_ATTR(self, inst: Instruction):
-        root = self.stack.pop()
+        root = self.pop()
         if hasattr(root, inst.argval):
             value = getattr(root, inst.argval)
             self.stack.append(value)
@@ -227,24 +227,24 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             self.stack.append(None)
 
     def LOAD_METHOD(self, inst: Instruction):
-        value = getattr(self.stack.pop(), inst.argval)
+        value = getattr(self.pop(), inst.argval)
         self.stack.append(value)
 
     def CALL_METHOD(self, inst: Instruction):
-        args = [self.stack.pop() for _ in range(inst.argval)]
-        fn = self.stack.pop()
+        args = [self.pop() for _ in range(inst.argval)]
+        fn = self.pop()
         res = self.output.create_node('call_function', fn, args, {})
         self.stack.append(res)
 
     def CALL_FUNCTION(self, inst: Instruction):
-        args = [self.stack.pop() for _ in range(inst.argval)]
-        fn = self.stack.pop()
+        args = [self.pop() for _ in range(inst.argval)]
+        fn = self.pop()
         self.call_function(fn, args, {})
 
     def CALL_FUNCTION_KW(self, inst: Instruction):
-        argnames = self.stack.pop()
+        argnames = self.pop()
         args = self.popn(inst.argval)
-        fn = self.stack.pop()
+        fn = self.pop()
         args, kwargs = args[: -len(argnames)], args[-len(argnames) :]
         kwargs = dict(zip(argnames, kwargs))
         self.call_function(fn, args, kwargs)
@@ -279,10 +279,10 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         root[idx] = value
 
     def POP_TOP(self, inst: Instruction):
-        value = self.stack.pop()
+        value = self.pop()
 
     def STORE_FAST(self, inst: Instruction):
-        self.f_locals[inst.argval] = self.stack.pop()
+        self.f_locals[inst.argval] = self.pop()
 
     def LOAD_FAST(self, inst: Instruction):
         self.stack.append(self.f_locals[inst.argval])
@@ -302,7 +302,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             'is not': 'is_not',
         }
         op = getattr(operator, op_mapper[inst.argval])
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        args = list(reversed([self.pop() for _ in range(2)]))
         res = self.output.create_node('call_function', op, args, {})
         self.stack.append(res)
 
