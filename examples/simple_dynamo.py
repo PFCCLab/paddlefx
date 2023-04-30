@@ -83,10 +83,23 @@ optimized_res = optimized_foo(in_a, in_b)
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
 
 
+class TestClass:
+    def add(self, a, b):
+        return a + b
+
+    def multiply(self, a, b):
+        c = [{'a': a, 'b': b}]
+        c = c[0]
+        return c['a'] * c['b']
+
+
+test_obj = TestClass()
+
+
 def func2(a, b):
     print('\tcall func')
-    c = paddle.add(a, b)
-    d = paddle.multiply(c, c)
+    c = test_obj.add(a, b)
+    d = test_obj.multiply(c, c)
     return d
 
 

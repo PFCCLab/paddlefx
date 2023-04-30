@@ -159,11 +159,13 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
         gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
-        self.output.graph.print_tabular()
         self.call_user_compiler(gl)
 
     def pop(self):
         return self.stack.pop()
+
+    def append(self, item):
+        return self.stack.append(item)
 
     def popn(self, n):
         if n:
@@ -251,6 +253,31 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         items = self.popn(inst.argval)
         self.stack.append(items)
 
+    def BUILD_MAP(self, inst):
+        items = self.popn(inst.argval * 2)
+        result = dict()
+        for k, v in zip(items[::2], items[1::2]):
+            result[k] = v
+        assert len(result) == len(items) / 2
+        self.stack.append(result)
+
+    def BUILD_CONST_KEY_MAP(self, inst):
+        # TODO(zrr1999): add assert
+        keys = self.pop()
+        values = self.popn(inst.argval)
+        self.stack.append(dict(zip(keys, values)))
+
+    def BINARY_SUBSCR(self, inst):
+        idx = self.pop()
+        root = self.pop()
+        self.stack.append(root[idx])
+
+    def STORE_SUBSCR(self, inst):
+        value = self.pop()
+        idx = self.pop()
+        root = self.pop()
+        root[idx] = value
+
     def POP_TOP(self, inst: Instruction):
         value = self.stack.pop()
 
@@ -296,5 +323,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
-            print(inst)
+            # print(inst)
             self.step(inst)
