@@ -85,12 +85,12 @@ np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
 
 class TestClass:
     def add(self, a, b):
-        return a + b
+        return paddle.add(a, b)
 
     def multiply(self, a, b):
         c = [{'a': a, 'b': b}]
         c = c[0]
-        return c['a'] * c['b']
+        return paddle.multiply(c['a'], c['b'])
 
     def forward(self, a, b):
         c = self.add(a, b)

@@ -47,7 +47,10 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ):
+    paddle_ops = paddle.__all__ + paddle.nn.__all__
     code = frame.f_code
+    if code.co_name in paddle_ops:
+        return GuardedCode(code)
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
     tracer = InstructionTranslator(instructions, frame, compiler_fn)
