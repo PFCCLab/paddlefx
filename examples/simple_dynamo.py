@@ -83,22 +83,19 @@ optimized_res = optimized_foo(in_a, in_b)
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
 
 
-class TestClass:
-    def add(self, a, b):
-        return paddle.add(a, b)
-
-    def multiply(self, a, b):
-        c = [{'a': a, 'b': b}]
-        c = c[0]
-        return paddle.multiply(c['a'], c['b'])
+class ExampleNet(paddle.nn.Layer):
+    def __init__(self):
+        super().__init__()
+        self.fc = [paddle.nn.Linear(1, 1), paddle.nn.Linear(1, 1)]
 
     def forward(self, a, b):
-        c = self.add(a, b)
-        d = self.multiply(c, c)
-        return d
+        c = self.fc[0](a)
+        d = self.fc[1](b)
+        e = paddle.add(c, d)
+        return e
 
 
-test_obj = TestClass()
+test_obj = ExampleNet()
 func = test_obj.forward
 
 optimized_func = paddlefx.optimize(my_compiler)(func)

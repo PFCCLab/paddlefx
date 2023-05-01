@@ -50,16 +50,20 @@ def _compile(
 ):
     paddle_modules = [
         "paddle.tensor.math",
+        "paddle.nn",
+        "paddle.fluid"
         # TODO(zrr1999): add more modules
     ]
     module = inspect.getmodule(frame)
+    print(module)
     if module is None:
         raise RuntimeError('Cannot find module for frame')
     package_name = module.__name__
 
     code = frame.f_code
-    if package_name in paddle_modules:
-        return GuardedCode(code)
+    for paddle_module in paddle_modules:
+        if package_name.startswith(paddle_module):
+            return GuardedCode(code)
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
     tracer = InstructionTranslator(instructions, frame, compiler_fn)

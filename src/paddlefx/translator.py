@@ -174,11 +174,6 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             return []
 
     def call_function(self, fn, args, kwargs):
-        mode_functions = [
-            paddle.framework.in_dygraph_mode,
-            paddle.framework._in_legacy_dygraph,
-            paddle.framework.in_dynamic_mode,
-        ]
         is_custom_call = False
         for arg in args:
             if isinstance(arg, (Proxy, paddle.Tensor)):
@@ -192,8 +187,11 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         # TODO: add `self.call_function` to handle more functions
         if fn == print:
             self.stack.append(None)
-        elif fn in mode_functions:
-            self.stack.append(fn())
+        elif fn.__module__.startswith("paddle"):
+            if hasattr(fn, "forward"):
+                fn = fn.forward
+            res = self.output.create_node('call_function', fn, args, kwargs)
+            self.stack.append(res)
         elif is_custom_call:
             raise NotImplementedError(f"custom_call is not supported")
         else:
@@ -219,9 +217,9 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         self.stack.append(value)
 
     def LOAD_ATTR(self, inst: Instruction):
-        root = self.pop()
-        if hasattr(root, inst.argval):
-            value = getattr(root, inst.argval)
+        obj = self.pop()
+        if hasattr(obj, inst.argval):
+            value = getattr(obj, inst.argval)
             self.stack.append(value)
         else:
             self.stack.append(None)
@@ -233,8 +231,13 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def CALL_METHOD(self, inst: Instruction):
         args = [self.pop() for _ in range(inst.argval)]
         fn = self.pop()
-        res = self.output.create_node('call_function', fn, args, {})
-        self.stack.append(res)
+        if hasattr(fn, "forward"):
+            fn = fn.forward
+        if fn is not None:
+            res = self.output.create_node('call_function', fn, args, {})
+            self.stack.append(res)
+        else:
+            self.stack.append(None)
 
     def CALL_FUNCTION(self, inst: Instruction):
         args = [self.pop() for _ in range(inst.argval)]
@@ -306,6 +309,11 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         res = self.output.create_node('call_function', op, args, {})
         self.stack.append(res)
 
+    def IS_OP(self, inst: Instruction):
+        args = list(reversed([self.pop() for _ in range(2)]))
+        res = self.output.create_node('call_function', operator.is_, args, {})
+        self.stack.append(res)
+
 
 class InstructionTranslator(InstructionTranslatorBase):
     def __init__(
@@ -323,5 +331,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
-            # print(inst)
+            print(inst)
             self.step(inst)
