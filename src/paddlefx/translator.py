@@ -185,7 +185,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
                 break
 
         # TODO: add `self.call_function` to handle more functions
-        if fn == print:
+        if fn is print:
             self.stack.append(None)
         elif fn.__module__.startswith("paddle"):
             if hasattr(fn, "forward"):
