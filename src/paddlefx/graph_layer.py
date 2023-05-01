@@ -66,6 +66,8 @@ class GraphLayer(paddle.nn.Layer):
 
     def _generate_forward(self):
         body, free_variables = self.graph.python_code(root_module='self')
+        if "self" not in free_variables:
+            free_variables.insert(0, "self")
         body = '\n'.join('    ' + line for line in body.split('\n')) + '\n'
         self.src = f"""\
 def forward({', '.join(free_variables)}):
