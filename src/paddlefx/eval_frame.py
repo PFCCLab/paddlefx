@@ -51,11 +51,11 @@ def _compile(
     paddle_modules = [
         "paddle.nn",
         "paddle.fluid",
-        "paddle.tensor"
+        "paddle.tensor",
         # TODO(zrr1999): add more modules
     ]
     module = inspect.getmodule(frame)
-    # print(module)
+    print(module)
     if module is None:
         raise RuntimeError('Cannot find module for frame')
     package_name = module.__name__
