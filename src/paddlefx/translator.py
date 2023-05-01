@@ -195,8 +195,6 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         elif fn == isinstance:
             res = self.output.create_node('call_function', fn, args, kwargs)
             self.stack.append(res)
-        elif isinstance(fn, type):
-            self.stack.append(None)
         elif is_custom_call:
             raise NotImplementedError(f"custom_call is not supported")
         else:
@@ -230,14 +228,14 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             self.stack.append(None)
 
     def LOAD_METHOD(self, inst: Instruction):
-        value = getattr(self.pop(), inst.argval)
-        self.stack.append(value)
+        fn = getattr(self.pop(), inst.argval)
+        if hasattr(fn, "forward"):
+            fn = fn.forward
+        self.stack.append(fn)
 
     def CALL_METHOD(self, inst: Instruction):
         args = [self.pop() for _ in range(inst.argval)]
         fn = self.pop()
-        if hasattr(fn, "forward"):
-            fn = fn.forward
         if fn is not None:
             res = self.output.create_node('call_function', fn, args, {})
             self.stack.append(res)
