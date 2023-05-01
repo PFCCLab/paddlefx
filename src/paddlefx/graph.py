@@ -21,10 +21,12 @@ def snake_case(s):
 
 
 def _qualified_name(func):
-    if hasattr(func, '__name__'):
+    if hasattr(func, 'node'):
+        name = func.node.name
+    elif hasattr(func, '__name__'):
         name = func.__name__
     else:
-        name = func.__class__.__name__
+        raise NotImplementedError(f'cannot get name of {func}')
 
     # things like getattr just appear in builtins
     if getattr(builtins, name, None) is func:
@@ -168,6 +170,8 @@ class Graph:
     def _name(self, op):
         if hasattr(op, '__name__'):
             op = op.__name__
+        if hasattr(op, 'node'):
+            op = op.node.name
 
         if _is_magic(op):
             op = op[2:-2]
@@ -240,6 +244,9 @@ class Graph:
                     f'{node.name} = {_format_target(repr(node.args[0]), node.target)}'
                     f'({_format_args(node.args[1:], node.kwargs)})\n'
                 )
+                # print(
+                #     f'{node.name} = {_format_target(repr(node.args[0]), node.target)}'
+                #     f'({_format_args(node.args[1:], node.kwargs)})\n')
                 continue
             elif node.op == 'call_function':
                 # pretty print operators

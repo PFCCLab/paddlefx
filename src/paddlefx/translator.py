@@ -146,7 +146,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         self.stack = []
         for k, v in frame.f_locals.items():
             if k == "self":
-                self.f_locals[k] = v
+                self.f_locals[k] = self.output._proxy_placeholder(k)
             else:
                 self.f_locals[k] = self.output._proxy_placeholder(k)
 
@@ -229,13 +229,13 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
     def LOAD_METHOD(self, inst: Instruction):
         fn = getattr(self.pop(), inst.argval)
-        if hasattr(fn, "forward"):
-            fn = fn.forward
         self.stack.append(fn)
 
     def CALL_METHOD(self, inst: Instruction):
         args = [self.pop() for _ in range(inst.argval)]
         fn = self.pop()
+        if hasattr(fn, "forward"):
+            fn = fn.forward
         if fn is not None:
             res = self.output.create_node('call_function', fn, args, {})
             self.stack.append(res)
@@ -318,7 +318,8 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
     def IS_OP(self, inst: Instruction):
         args = list(reversed([self.pop() for _ in range(2)]))
-        self.stack.append(args[0] is args[1])
+        res = self.output.create_node('call_function', operator.is_, args, {})
+        self.stack.append(res)
 
 
 class InstructionTranslator(InstructionTranslatorBase):

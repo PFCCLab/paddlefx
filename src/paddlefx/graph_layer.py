@@ -68,7 +68,7 @@ class GraphLayer(paddle.nn.Layer):
         body, free_variables = self.graph.python_code(root_module='self')
         body = '\n'.join('    ' + line for line in body.split('\n')) + '\n'
         self.src = f"""\
-def forward(self, {', '.join(free_variables)}):
+def forward({', '.join(free_variables)}):
     self = self.root
 {body}
 """
