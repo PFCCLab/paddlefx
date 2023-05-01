@@ -337,5 +337,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
-            # print(inst)
+            print(inst)
             self.step(inst)
