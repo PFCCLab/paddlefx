@@ -192,6 +192,11 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
                 fn = fn.forward
             res = self.output.create_node('call_function', fn, args, kwargs)
             self.stack.append(res)
+        elif fn == isinstance:
+            res = self.output.create_node('call_function', fn, args, kwargs)
+            self.stack.append(res)
+        elif isinstance(fn, type):
+            self.stack.append(None)
         elif is_custom_call:
             raise NotImplementedError(f"custom_call is not supported")
         else:
@@ -252,6 +257,10 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         kwargs = dict(zip(argnames, kwargs))
         self.call_function(fn, args, kwargs)
 
+    def BUILD_TUPLE(self, inst):
+        items = self.popn(inst.argval)
+        self.stack.append(tuple(items))
+
     def BUILD_LIST(self, inst):
         items = self.popn(inst.argval)
         self.stack.append(items)
@@ -311,8 +320,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
     def IS_OP(self, inst: Instruction):
         args = list(reversed([self.pop() for _ in range(2)]))
-        res = self.output.create_node('call_function', operator.is_, args, {})
-        self.stack.append(res)
+        self.stack.append(args[0] is args[1])
 
 
 class InstructionTranslator(InstructionTranslatorBase):
@@ -331,5 +339,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
-            print(inst)
+            # print(inst)
             self.step(inst)

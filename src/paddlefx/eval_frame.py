@@ -49,13 +49,13 @@ def _compile(
     compiler_fn: Callable,
 ):
     paddle_modules = [
-        "paddle.tensor.math",
         "paddle.nn",
-        "paddle.fluid"
+        "paddle.fluid",
+        "paddle.tensor"
         # TODO(zrr1999): add more modules
     ]
     module = inspect.getmodule(frame)
-    print(module)
+    # print(module)
     if module is None:
         raise RuntimeError('Cannot find module for frame')
     package_name = module.__name__
