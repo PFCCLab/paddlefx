@@ -56,7 +56,7 @@ def convert_instruction(i: dis.Instruction):
 def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        args = self.popn(2, reverse=True)
+        args = self.popn(2)
         res = self.output.create_node('call_function', op, args, {})
         self.push(res)
 
@@ -165,7 +165,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def push(self, item):
         return self.stack.append(item)
 
-    def popn(self, n, reverse=False):
+    def popn(self, n, reverse=True):
         if not n:
             return []
         if reverse:
@@ -232,7 +232,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         self.push(fn)
 
     def CALL_METHOD(self, inst: Instruction):
-        args = [self.pop() for _ in range(inst.argval)]
+        args = self.popn(inst.argval)
         fn = self.pop()
         if hasattr(fn, "forward"):
             fn = fn.forward
@@ -312,7 +312,7 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             'is not': 'is_not',
         }
         op = getattr(operator, op_mapper[inst.argval])
-        args = self.popn(2, reverse=True)
+        args = self.popn(2)
         res = self.output.create_node('call_function', op, args, {})
         self.push(res)
 
