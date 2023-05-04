@@ -31,7 +31,6 @@ def func(a, b):
 in_a = paddle.rand([3, 4])
 in_b = paddle.rand([3, 4])
 out = paddle.add(in_a, in_b)
-# out = paddle.add(out, out)
 
 res = add(in_a, in_b)
 np.testing.assert_equal(res.numpy(), out.numpy())
@@ -95,8 +94,8 @@ class ExampleNet(paddle.nn.Layer):
         return e
 
 
-test_obj = ExampleNet()
-func = test_obj.forward
+net = ExampleNet()
+func = net.forward
 
 optimized_func = paddlefx.optimize(my_compiler)(func)
 

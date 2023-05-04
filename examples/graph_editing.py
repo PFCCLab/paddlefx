@@ -6,7 +6,7 @@ from paddlefx import symbolic_trace
 
 
 def net(x, y):
-    return -(x + y)
+    return x + y
 
 
 traced_layer = symbolic_trace(net)

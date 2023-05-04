@@ -55,7 +55,6 @@ def _compile(
         # TODO(zrr1999): add more modules
     ]
     module = inspect.getmodule(frame)
-    print(module)
     if module is None:
         raise RuntimeError('Cannot find module for frame')
     package_name = module.__name__
@@ -81,9 +80,6 @@ def has_tensor_in_frame(frame: types.FrameType) -> bool:
         return False
     if frame.f_code.co_name == 'in_dygraph_mode':
         return False
-
-    # print(frame)
-    # print(dis.disassemble(frame.f_code))
 
     for v in frame.f_locals.values():
         # TODO: supprt containers

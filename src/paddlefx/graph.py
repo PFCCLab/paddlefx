@@ -244,9 +244,6 @@ class Graph:
                     f'{node.name} = {_format_target(repr(node.args[0]), node.target)}'
                     f'({_format_args(node.args[1:], node.kwargs)})\n'
                 )
-                # print(
-                #     f'{node.name} = {_format_target(repr(node.args[0]), node.target)}'
-                #     f'({_format_args(node.args[1:], node.kwargs)})\n')
                 continue
             elif node.op == 'call_function':
                 # pretty print operators
