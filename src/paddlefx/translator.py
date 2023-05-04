@@ -100,6 +100,7 @@ BINARY_MAPPER = {
     'ipow': 'INPLACE_POWER',
     'isub': 'INPLACE_SUBTRACT',
     'itruediv': 'INPLACE_TRUE_DIVIDE',
+    'is_': 'IS_OP',
 }
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
@@ -318,10 +319,10 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         res = self.output.create_node('call_function', op, args, {})
         self.push(res)
 
-    def IS_OP(self, inst: Instruction):
-        args = self.popn(2, reverse=True)
-        res = self.output.create_node('call_function', operator.is_, args, {})
-        self.push(res)
+    # def IS_OP(self, inst: Instruction):
+    #     args = self.popn(2, reverse=True)
+    #     res = self.output.create_node('call_function', operator.is_, args, {})
+    #     self.push(res)
 
 
 class InstructionTranslator(InstructionTranslatorBase):
