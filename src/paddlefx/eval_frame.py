@@ -48,6 +48,7 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ):
+    # TODO(zrr1999): This part can be removed when running the converted bytecode in the future.
     paddle_modules = [
         "paddle.nn",
         "paddle.fluid",

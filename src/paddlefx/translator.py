@@ -190,12 +190,12 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         # TODO: add `self.call_function` to handle more functions
         if fn is print:
             self.push(None)
+        elif fn is isinstance:
+            res = self.output.create_node('call_function', fn, args, kwargs)
+            self.push(res)
         elif fn.__module__.startswith("paddle"):
             if hasattr(fn, "forward"):
                 fn = fn.forward
-            res = self.output.create_node('call_function', fn, args, kwargs)
-            self.push(res)
-        elif fn == isinstance:
             res = self.output.create_node('call_function', fn, args, kwargs)
             self.push(res)
         elif is_custom_call:

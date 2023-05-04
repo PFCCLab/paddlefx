@@ -101,4 +101,5 @@ optimized_func = paddlefx.optimize(my_compiler)(func)
 
 original_res = func(in_a, in_b)
 optimized_res = optimized_func(in_a, in_b)
+# TODO(zrr1999): `optimized_res` is the result of running the converted bytecode in the future.
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
