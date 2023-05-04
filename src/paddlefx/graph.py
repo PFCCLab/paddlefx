@@ -196,6 +196,11 @@ class Graph:
     def placeholder(self, name):
         return self.create_node('placeholder', target=name, name=name.replace('*', ''))
 
+    def call_module(self, target, args, kwargs):
+        return self.create_node(
+            'call_module', target, args, kwargs, name=target.replace('.', '_')
+        )
+
     def erase_node(self, to_erase: Node) -> None:
         if len(to_erase.users) > 0:
             raise RuntimeError(
