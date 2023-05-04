@@ -145,11 +145,8 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
         self.f_locals = {}
         self.stack = []
-        for k, v in frame.f_locals.items():
-            if k == "self":
-                self.f_locals[k] = self.output._proxy_placeholder(k)
-            else:
-                self.f_locals[k] = self.output._proxy_placeholder(k)
+        for k, _ in frame.f_locals.items():
+            self.f_locals[k] = self.output._proxy_placeholder(k)
 
     def call_user_compiler(self, gl):
         compiled_fn = self.compiler_fn(gl)
