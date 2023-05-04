@@ -156,7 +156,11 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         # add output node
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
-        gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
+        if self.frame.f_locals.get('self', None):
+            root = self.frame.f_locals.get('self')
+        else:
+            root = paddle.nn.Layer()
+        gl = GraphLayer(root, self.output.graph)
         self.call_user_compiler(gl)
 
     def pop(self):
@@ -165,7 +169,8 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def push(self, item):
         return self.stack.append(item)
 
-    def popn(self, n, reverse=True):
+    def popn(self, n: int, reverse=True):
+        assert n >= 0
         if not n:
             return []
         if reverse:
@@ -228,22 +233,35 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             self.push(None)
 
     def LOAD_METHOD(self, inst: Instruction):
-        fn = getattr(self.pop(), inst.argval)
+        target = self.pop()
+        if isinstance(target, str) and target.startswith("self"):
+            fn = f"{target}.{inst.argval}"
+        elif isinstance(target, Proxy) and target.node.name.startswith("self"):
+            fn = f"{target.node.name}.{inst.argval}"
+        else:
+            fn = getattr(target, inst.argval)
         self.push(fn)
 
     def CALL_METHOD(self, inst: Instruction):
         args = self.popn(inst.argval)
         fn = self.pop()
-        if hasattr(fn, "forward"):
-            fn = fn.forward
-        if fn is not None:
-            res = self.output.create_node('call_function', fn, args, {})
+        if isinstance(fn, str):
+            if fn.startswith("self"):
+                res = self.output.create_node('call_module', fn[5:], args, {})
+            else:
+                res = self.output.create_node('call_method', fn, args, {})
             self.push(res)
         else:
-            self.push(None)
+            if hasattr(fn, "forward"):
+                fn = fn.forward
+            if fn is not None:
+                res = self.output.create_node('call_function', fn, args, {})
+                self.push(res)
+            else:
+                self.push(None)
 
     def CALL_FUNCTION(self, inst: Instruction):
-        args = [self.pop() for _ in range(inst.argval)]
+        args = self.popn(inst.argval)
         fn = self.pop()
         self.call_function(fn, args, {})
 

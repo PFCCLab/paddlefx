@@ -11,7 +11,8 @@ import paddlefx
 
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
     print("my_compiler() called with FX graph:")
-    gl.graph.print_tabular()
+    print(gl.get_source())
+    gl.graph.print_tabular(print_mode="rich")
     return gl.forward
 
 
