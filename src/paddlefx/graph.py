@@ -147,7 +147,7 @@ class Graph:
             'placeholder',
             'output',
         )
-        args = () if args is None else args
+        args = () if args is None else tuple(args)
         kwargs = {} if kwargs is None else kwargs
         name = name if name is not None else self._name(target or op)
         if name[0].isdigit():
