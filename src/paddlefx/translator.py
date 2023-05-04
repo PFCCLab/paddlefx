@@ -174,9 +174,9 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         if not n:
             return []
         if reverse:
-            return [self.pop() for _ in range(n)]
-        else:
             return list(reversed([self.pop() for _ in range(n)]))
+        else:
+            return [self.pop() for _ in range(n)]
 
     def call_function(self, fn, args, kwargs):
         is_custom_call = False
@@ -226,7 +226,10 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
     def LOAD_ATTR(self, inst: Instruction):
         obj = self.pop()
-        if hasattr(obj, inst.argval):
+        if isinstance(obj, Proxy) and obj.node.name.startswith("self"):
+            res = self.output.create_node('get_param', inst.argval)
+            self.push(res)
+        elif hasattr(obj, inst.argval):
             value = getattr(obj, inst.argval)
             self.push(value)
         else:

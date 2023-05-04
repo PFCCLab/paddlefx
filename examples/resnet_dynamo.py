@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import paddle
 import paddle.nn
+import paddle.tensor
 
 from paddle.vision.models import resnet18
 
