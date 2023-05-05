@@ -27,7 +27,7 @@ class Proxy:
         self.tracer = tracer
 
     def __repr__(self):
-        return f'Proxy({self.node.name})'
+        return f'{self.node.name}'
 
     def __getattr__(self, k):
         # note: not added to the graph yet, if this is a method call
@@ -45,7 +45,7 @@ class Proxy:
         if current_instruction.opname == "UNPACK_SEQUENCE":
             return (self[i] for i in range(current_instruction.argval))
         elif current_instruction.opname == "GET_ITER":
-            raise NotImplementedError()
+            return (self[i] for i in range(current_instruction.argval))
         raise ValueError("Cannot find UNPACK_SEQUENCE instruction")
 
 
@@ -65,6 +65,9 @@ class Attribute(Proxy):
                 self.tracer, 'call_function', getattr, (self.root, self.attr), {}
             ).node
         return self._node
+
+    def __str__(self):
+        return f'{self.root}.{self.node.name}'
 
     def __call__(self, *args, **kwargs):
         return _create_proxy(

@@ -80,3 +80,25 @@ original_res = inplace(in_a, in_b)
 optimized_res = optimized_foo(in_a, in_b)
 
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
+
+
+class ExampleNet(paddle.nn.Layer):
+    def __init__(self):
+        super().__init__()
+        self.fc = [paddle.nn.Linear(1, 1), paddle.nn.Linear(1, 1)]
+
+    def forward(self, a, b):
+        c = self.fc[0](a)
+        d = self.fc[1](b)
+        e = paddle.add(c, d)
+        return e
+
+
+net = ExampleNet()
+
+optimized_func = paddlefx.optimize(my_compiler)(net)
+
+original_res = net(in_a, in_b)
+optimized_res = optimized_func(in_a, in_b)
+# TODO(zrr1999): `optimized_res` is the result of running the converted bytecode in the future.
+np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())

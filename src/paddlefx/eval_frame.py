@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import dataclasses
 import dis
+import inspect
 import types
 
 from typing import Callable
 
 import paddle
+import paddle.nn
 
 from ._eval_frame import set_eval_frame
 from .translator import InstructionTranslator, convert_instruction
@@ -24,6 +26,7 @@ class DynamoContext:
 
     def __enter__(self):
         self.old_callback = set_eval_frame(self.callback)
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         set_eval_frame(self.old_callback)
@@ -45,7 +48,22 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ):
+    # TODO(zrr1999): This part can be removed when running the converted bytecode in the future.
+    paddle_modules = [
+        "paddle.nn",
+        "paddle.fluid",
+        "paddle.tensor",
+        # TODO(zrr1999): add more modules
+    ]
+    module = inspect.getmodule(frame)
+    if module is None:
+        raise RuntimeError('Cannot find module for frame')
+    package_name = module.__name__
+
     code = frame.f_code
+    for paddle_module in paddle_modules:
+        if package_name.startswith(paddle_module):
+            return GuardedCode(code)
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
     tracer = InstructionTranslator(instructions, frame, compiler_fn)
@@ -63,9 +81,6 @@ def has_tensor_in_frame(frame: types.FrameType) -> bool:
         return False
     if frame.f_code.co_name == 'in_dygraph_mode':
         return False
-
-    # print(frame)
-    # print(dis.disassemble(frame.f_code))
 
     for v in frame.f_locals.values():
         # TODO: supprt containers

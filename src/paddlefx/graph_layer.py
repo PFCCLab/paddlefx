@@ -66,9 +66,11 @@ class GraphLayer(paddle.nn.Layer):
 
     def _generate_forward(self):
         body, free_variables = self.graph.python_code(root_module='self')
+        if "self" not in free_variables:
+            free_variables.insert(0, "self")
         body = '\n'.join('    ' + line for line in body.split('\n')) + '\n'
         self.src = f"""\
-def forward(self, {', '.join(free_variables)}):
+def forward({', '.join(free_variables)}):
     self = self.root
 {body}
 """
@@ -81,6 +83,11 @@ def forward(self, {', '.join(free_variables)}):
         cls = type(self)
         for k, v in gbls.items():
             setattr(cls, k, v)
+
+    def get_source(self, update: bool = True):
+        if update:
+            self._generate_forward()
+        return self.src
 
 
 # copy an attribute value with qualified name 'target' from 'from_module' to 'to_module'

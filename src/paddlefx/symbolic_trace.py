@@ -229,7 +229,7 @@ class Tracer:
         n = self.graph.create_node('placeholder', name, (), {})
         return Proxy(n, self)
 
-    def create_node(self, op, target, args, kwargs, name=None):
+    def create_node(self, op, target, args=None, kwargs=None, name=None):
         return self.graph.create_node(op, target, args, kwargs, name)
 
     def create_arg(self, a):

@@ -56,9 +56,9 @@ def convert_instruction(i: dis.Instruction):
 def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        args = self.popn(2)
         res = self.output.create_node('call_function', op, args, {})
-        self.stack.append(res)
+        self.push(res)
 
     return _binary
 
@@ -66,8 +66,8 @@ def _binary_constructor(op_name: str):
 def _unary_constructor(op_name: str):
     def _unary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        res = self.output.create_node('call_function', op, self.stack.pop(), {})
-        self.stack.append(res)
+        res = self.output.create_node('call_function', op, self.pop(), {})
+        self.push(res)
 
     return _unary
 
@@ -100,6 +100,7 @@ BINARY_MAPPER = {
     'ipow': 'INPLACE_POWER',
     'isub': 'INPLACE_SUBTRACT',
     'itruediv': 'INPLACE_TRUE_DIVIDE',
+    'is_': 'IS_OP',
 }
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
@@ -155,16 +156,61 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         # add output node
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
-
-        gl = GraphLayer(paddle.nn.Layer(), self.output.graph)
+        if self.frame.f_locals.get('self', None):
+            root = self.frame.f_locals.get('self')
+        else:
+            root = paddle.nn.Layer()
+        gl = GraphLayer(root, self.output.graph)
         self.call_user_compiler(gl)
+
+    def pop(self):
+        return self.stack.pop()
+
+    def push(self, item):
+        return self.stack.append(item)
+
+    def popn(self, n: int, reverse=True):
+        assert n >= 0
+        if not n:
+            return []
+        if reverse:
+            return list(reversed([self.pop() for _ in range(n)]))
+        else:
+            return [self.pop() for _ in range(n)]
+
+    def call_function(self, fn, args, kwargs):
+        is_custom_call = False
+        for arg in args:
+            if isinstance(arg, (Proxy, paddle.Tensor)):
+                is_custom_call = True
+                break
+        for arg in kwargs:
+            if isinstance(arg, (Proxy, paddle.Tensor)):
+                is_custom_call = True
+                break
+
+        # TODO: add `self.call_function` to handle more functions
+        if fn is print:
+            self.push(None)
+        elif fn is isinstance:
+            res = self.output.create_node('call_function', fn, args, kwargs)
+            self.push(res)
+        elif fn.__module__.startswith("paddle"):
+            if hasattr(fn, "forward"):
+                fn = fn.forward
+            res = self.output.create_node('call_function', fn, args, kwargs)
+            self.push(res)
+        elif is_custom_call:
+            raise NotImplementedError(f"custom_call is not supported")
+        else:
+            raise NotImplementedError(f"call function {fn} is not supported")
 
     def LOAD_GLOBAL(self, inst: Instruction):
         name = inst.argval
         if name in self.frame.f_globals:
-            self.stack.append(self.frame.f_globals[name])
+            self.push(self.frame.f_globals[name])
         elif name in self.frame.f_builtins:
-            self.stack.append(self.frame.f_builtins[name])
+            self.push(self.frame.f_builtins[name])
         else:
             raise Exception(f"name '{name}' is not found")
 
@@ -176,34 +222,104 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
 
     def LOAD_CONST(self, inst: Instruction):
         value = inst.argval
-        self.stack.append(value)
+        self.push(value)
+
+    def LOAD_ATTR(self, inst: Instruction):
+        obj = self.pop()
+        if isinstance(obj, Proxy) and obj.node.name.startswith("self"):
+            res = self.output.create_node('get_param', inst.argval)
+            self.push(res)
+        elif hasattr(obj, inst.argval):
+            value = getattr(obj, inst.argval)
+            self.push(value)
+        else:
+            self.push(None)
+
+    def LOAD_METHOD(self, inst: Instruction):
+        target = self.pop()
+        if isinstance(target, str) and target.startswith("self"):
+            fn = f"{target}.{inst.argval}"
+        elif isinstance(target, Proxy) and target.node.name.startswith("self"):
+            fn = f"{target.node.name}.{inst.argval}"
+        else:
+            fn = getattr(target, inst.argval)
+        self.push(fn)
+
+    def CALL_METHOD(self, inst: Instruction):
+        args = self.popn(inst.argval)
+        fn = self.pop()
+        if isinstance(fn, str):
+            if fn.startswith("self"):
+                res = self.output.create_node('call_module', fn[5:], args, {})
+            else:
+                # TODO(zrr1999) call_method is not implemented.
+                raise NotImplemented
+                # res = self.output.create_node('call_method', fn, args, {})
+            self.push(res)
+        else:
+            if hasattr(fn, "forward"):
+                fn = fn.forward
+            if fn is not None:
+                res = self.output.create_node('call_function', fn, args, {})
+                self.push(res)
+            else:
+                self.push(None)
 
     def CALL_FUNCTION(self, inst: Instruction):
-        args = [self.stack.pop() for _ in range(inst.argval)]
-        fn = self.stack.pop()
+        args = self.popn(inst.argval)
+        fn = self.pop()
+        self.call_function(fn, args, {})
 
-        is_custom_call = False
-        for arg in args:
-            if isinstance(arg, (Proxy, paddle.Tensor)):
-                is_custom_call = True
-                break
+    def CALL_FUNCTION_KW(self, inst: Instruction):
+        argnames = self.pop()
+        args = self.popn(inst.argval)
+        fn = self.pop()
+        args, kwargs = args[: -len(argnames)], args[-len(argnames) :]
+        kwargs = dict(zip(argnames, kwargs))
+        self.call_function(fn, args, kwargs)
 
-        # TODO: add `self.call_function` to handle more functions
-        if fn == print:
-            self.stack.append(None)
-        elif is_custom_call:
-            raise NotImplementedError(f"custom_call is not supported")
-        else:
-            raise NotImplementedError(f"call function {fn} is not supported")
+    def BUILD_TUPLE(self, inst):
+        items = self.popn(inst.argval)
+        self.push(tuple(items))
+
+    def BUILD_LIST(self, inst):
+        items = self.popn(inst.argval)
+        self.push(items)
+
+    def BUILD_MAP(self, inst):
+        items = self.popn(inst.argval * 2)
+        result = dict()
+        for k, v in zip(items[::2], items[1::2]):
+            result[k] = v
+        assert len(result) == len(items) / 2
+        self.push(result)
+
+    def BUILD_CONST_KEY_MAP(self, inst):
+        # TODO(zrr1999): add assert
+        keys = self.pop()
+        values = self.popn(inst.argval)
+        self.push(dict(zip(keys, values)))
+
+    def BINARY_SUBSCR(self, inst):
+        idx = self.pop()
+        root = self.pop()
+        res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
+        self.push(res)
+
+    def STORE_SUBSCR(self, inst):
+        value = self.pop()
+        idx = self.pop()
+        root = self.pop()
+        self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
 
     def POP_TOP(self, inst: Instruction):
-        value = self.stack.pop()
+        value = self.pop()
 
     def STORE_FAST(self, inst: Instruction):
-        self.f_locals[inst.argval] = self.stack.pop()
+        self.f_locals[inst.argval] = self.pop()
 
     def LOAD_FAST(self, inst: Instruction):
-        self.stack.append(self.f_locals[inst.argval])
+        self.push(self.f_locals[inst.argval])
 
     def RETURN_VALUE(self, inst: Instruction):
         self.compile_subgraph()
@@ -220,9 +336,9 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             'is not': 'is_not',
         }
         op = getattr(operator, op_mapper[inst.argval])
-        args = list(reversed([self.stack.pop() for _ in range(2)]))
+        args = self.popn(2)
         res = self.output.create_node('call_function', op, args, {})
-        self.stack.append(res)
+        self.push(res)
 
 
 class InstructionTranslator(InstructionTranslatorBase):

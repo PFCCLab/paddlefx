@@ -21,10 +21,18 @@ def snake_case(s):
 
 
 def _qualified_name(func):
+    if hasattr(func, 'node'):
+        name = func.node.name
+    elif hasattr(func, '__name__'):
+        name = func.__name__
+    elif hasattr(func, 'name'):
+        name = func.name
+    else:
+        raise NotImplementedError(f'cannot get name of {func}')
+
     # things like getattr just appear in builtins
-    if getattr(builtins, func.__name__, None) is func:
-        return func.__name__
-    name = func.__name__
+    if getattr(builtins, name, None) is func:
+        return name
     module = _find_module_of_method(func)
     return f'{module}.{name}'
 
@@ -42,7 +50,10 @@ def _is_illegal_name(name: str, obj: Any) -> bool:
 
 
 def _find_module_of_method(orig_method):
-    name = orig_method.__name__
+    if hasattr(orig_method, '__name__'):
+        name = orig_method.__name__
+    else:
+        name = orig_method.__class__.__name__
     module = orig_method.__module__
     if module is not None:
         return module
@@ -138,7 +149,7 @@ class Graph:
             'placeholder',
             'output',
         )
-        args = () if args is None else args
+        args = () if args is None else tuple(args)
         kwargs = {} if kwargs is None else kwargs
         name = name if name is not None else self._name(target or op)
         if name[0].isdigit():
@@ -161,6 +172,10 @@ class Graph:
     def _name(self, op):
         if hasattr(op, '__name__'):
             op = op.__name__
+        if hasattr(op, 'name'):
+            op = op.name
+        if hasattr(op, 'node'):
+            op = op.node.name
 
         if _is_magic(op):
             op = op[2:-2]
@@ -184,6 +199,11 @@ class Graph:
 
     def placeholder(self, name):
         return self.create_node('placeholder', target=name, name=name.replace('*', ''))
+
+    def call_module(self, target, args, kwargs):
+        return self.create_node(
+            'call_module', target, args, kwargs, name=target.replace('.', '_')
+        )
 
     def erase_node(self, to_erase: Node) -> None:
         if len(to_erase.users) > 0:
@@ -281,7 +301,9 @@ class Graph:
         """Prints the intermediate representation of the graph in tabular
         format.
 
-        Note that this API requires the ``tabulate`` module to be installed.
+        Note that this API allows users to choose between using the ``raw``,
+        ``tabulate`` or ``rich`` mode. If the user specifies a mode that is not
+        installed, the API will automatically fall back on the ``raw`` mode.
         """
         assert print_mode in ["raw", "tabulate", "rich"]
         if print_mode == "raw":
