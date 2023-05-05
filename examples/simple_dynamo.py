@@ -95,11 +95,10 @@ class ExampleNet(paddle.nn.Layer):
 
 
 net = ExampleNet()
-func = net.forward
 
-optimized_func = paddlefx.optimize(my_compiler)(func)
+optimized_func = paddlefx.optimize(my_compiler)(net)
 
-original_res = func(in_a, in_b)
+original_res = net(in_a, in_b)
 optimized_res = optimized_func(in_a, in_b)
 # TODO(zrr1999): `optimized_res` is the result of running the converted bytecode in the future.
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
