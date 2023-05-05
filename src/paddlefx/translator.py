@@ -252,7 +252,9 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
             if fn.startswith("self"):
                 res = self.output.create_node('call_module', fn[5:], args, {})
             else:
-                res = self.output.create_node('call_method', fn, args, {})
+                # TODO(zrr1999) call_method is not implemented.
+                raise NotImplemented
+                # res = self.output.create_node('call_method', fn, args, {})
             self.push(res)
         else:
             if hasattr(fn, "forward"):
@@ -301,13 +303,14 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
     def BINARY_SUBSCR(self, inst):
         idx = self.pop()
         root = self.pop()
-        self.push(root[idx])
+        res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
+        self.push(res)
 
     def STORE_SUBSCR(self, inst):
         value = self.pop()
         idx = self.pop()
         root = self.pop()
-        root[idx] = value
+        self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
 
     def POP_TOP(self, inst: Instruction):
         value = self.pop()

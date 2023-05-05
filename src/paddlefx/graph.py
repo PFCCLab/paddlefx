@@ -25,6 +25,8 @@ def _qualified_name(func):
         name = func.node.name
     elif hasattr(func, '__name__'):
         name = func.__name__
+    elif hasattr(func, 'name'):
+        name = func.name
     else:
         raise NotImplementedError(f'cannot get name of {func}')
 
@@ -170,6 +172,8 @@ class Graph:
     def _name(self, op):
         if hasattr(op, '__name__'):
             op = op.__name__
+        if hasattr(op, 'name'):
+            op = op.name
         if hasattr(op, 'node'):
             op = op.node.name
 
