@@ -232,6 +232,15 @@ class Tracer:
     def create_node(self, op, target, args=None, kwargs=None, name=None):
         return self.graph.create_node(op, target, args, kwargs, name)
 
+    def get_param(self, target):
+        return self.graph.get_param(target)
+
+    def placeholder(self, name):
+        return self.graph.placeholder(name)
+
+    def call_module(self, target, args, kwargs):
+        return self.graph.call_module(target, args, kwargs)
+
     def create_arg(self, a):
         if isinstance(a, (tuple, list)):
             return type(a)(self.create_arg(elem) for elem in a)
