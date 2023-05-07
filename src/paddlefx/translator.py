@@ -14,6 +14,8 @@ from .graph_layer import GraphLayer
 from .proxy import Proxy
 from .symbolic_trace import Tracer
 
+__all__ = ['OutputGraph', 'Instruction', 'InstructionTranslator', 'convert_instruction']
+
 
 class OutputGraph(Tracer):
     def __init__(self):
@@ -115,22 +117,11 @@ NOT_IMPLEMENT = {
 }
 
 
-class InstructionTranslatorMeta(type):
-    def __new__(cls, *args, **kwargs):
-        inst = type.__new__(cls, *args, **kwargs)
-        mappers = [BINARY_MAPPER, UNARY_MAPPER, NOT_IMPLEMENT]
-        constructors = [_binary_constructor, _unary_constructor, _not_implemented]
-        for mapper, constructor in zip(mappers, constructors):
-            for op_name, func_name in mapper.items():
-                func = constructor(op_name)
-                func = types.FunctionType(
-                    func.__code__, globals(), None, None, func.__closure__
-                )
-                setattr(inst, func_name, func)
-        return inst
+OP_MAPPER = [BINARY_MAPPER, UNARY_MAPPER, NOT_IMPLEMENT]
+CONSTRUCTOR = [_binary_constructor, _unary_constructor, _not_implemented]
 
 
-class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
+class InstructionTranslatorBase:
     def __init__(
         self,
         instructions: list[Instruction],
@@ -339,6 +330,15 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         args = self.popn(2)
         res = self.output.create_node('call_function', op, args, {})
         self.push(res)
+
+
+for mapper, constructor in zip(OP_MAPPER, CONSTRUCTOR):
+    for op_name, func_name in mapper.items():
+        func = constructor(op_name)
+        func = types.FunctionType(
+            func.__code__, globals(), None, None, func.__closure__
+        )
+        setattr(InstructionTranslatorBase, func_name, func)
 
 
 class InstructionTranslator(InstructionTranslatorBase):
