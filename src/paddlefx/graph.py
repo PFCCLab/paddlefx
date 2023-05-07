@@ -264,6 +264,11 @@ class Graph:
                         f'{node.name} = {magic_methods[node.target.__name__].format(*(repr(a) for a in node.args))}\n'
                     )
                     continue
+                if isinstance(node.target, Node):
+                    body.append(
+                        f'{node.name} = {node.target}({_format_args(node.args, node.kwargs)})\n'
+                    )
+                    continue
                 qualified_name = _qualified_name(node.target)
                 if (
                     qualified_name == 'getattr'

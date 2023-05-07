@@ -10,6 +10,7 @@ import paddlefx
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
     print("my_compiler() called with FX graph:")
     gl.graph.print_tabular()
+    print(gl.get_source())
     return gl.forward
 
 
@@ -88,14 +89,13 @@ class ExampleNet(paddle.nn.Layer):
         self.fc = [paddle.nn.Linear(1, 1), paddle.nn.Linear(1, 1)]
 
     def forward(self, a, b):
-        c = self.fc[0](a)
-        d = self.fc[1](b)
+        c = self.fc[0](a[0])
+        d = self.fc[1](b[0])
         e = paddle.add(c, d)
         return e
 
 
 net = ExampleNet()
-
 optimized_func = paddlefx.optimize(my_compiler)(net)
 
 original_res = net(in_a, in_b)
