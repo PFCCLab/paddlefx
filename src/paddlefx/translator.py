@@ -100,7 +100,6 @@ BINARY_MAPPER = {
     'ipow': 'INPLACE_POWER',
     'isub': 'INPLACE_SUBTRACT',
     'itruediv': 'INPLACE_TRUE_DIVIDE',
-    'is_': 'IS_OP',
 }
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
@@ -334,6 +333,27 @@ class InstructionTranslatorBase(metaclass=InstructionTranslatorMeta):
         }
         op = getattr(operator, op_mapper[inst.argval])
         args = self.popn(2)
+        res = self.output.create_node('call_function', op, args, {})
+        self.push(res)
+
+    # note: python3.9+
+    def IS_OP(self, inst: Instruction):
+        invert = inst.argval
+        args = self.popn(2)
+        if invert:
+            op = operator.is_
+        else:
+            op = operator.is_not
+        res = self.output.create_node('call_function', op, args, {})
+        self.push(res)
+
+    def CONTAINS_OP(self, inst: Instruction):
+        invert = inst.argval
+        args = self.popn(2)
+        if invert:
+            op = operator.contains
+        else:
+            op = lambda a, b: b not in a
         res = self.output.create_node('call_function', op, args, {})
         self.push(res)
 
