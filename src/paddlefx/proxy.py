@@ -6,6 +6,8 @@ import operator
 import typing
 
 if typing.TYPE_CHECKING:
+    from typing import Any
+
     from .node import Node
     from .symbolic_trace import Tracer
 
@@ -29,10 +31,14 @@ class Proxy:
     def __repr__(self):
         return f'{self.node.name}'
 
-    def __getattr__(self, k):
+    def __getattr__(self, attr: str):
         # note: not added to the graph yet, if this is a method call
         # we peephole optimize to the method invocation
-        return Attribute(self, k)
+        return Attribute(self, attr)
+
+    def __getitem__(self, key: Any):
+        # note:  If you don’t add the __getitem__ part, the type checking tool will report an error
+        pass
 
     def __iter__(self):
         frame = inspect.currentframe()
@@ -59,15 +65,15 @@ class Attribute(Proxy):
     @property
     def node(self):
         # the node for attributes is added lazily, since most will just be method calls
-        # which do not rely on the getitem call
+        # which do not rely on the getattr call
         if self._node is None:
             self._node = _create_proxy(
                 self.tracer, 'call_function', getattr, (self.root, self.attr), {}
             ).node
         return self._node
 
-    def __str__(self):
-        return f'{self.root}.{self.node.name}'
+    def __repr__(self):
+        return f'{self.root}.{self.attr}'
 
     def __call__(self, *args, **kwargs):
         return _create_proxy(

@@ -11,7 +11,7 @@ import paddle
 import paddle.nn
 
 from .graph_layer import GraphLayer
-from .proxy import Proxy
+from .proxy import Attribute, Proxy
 from .symbolic_trace import Tracer
 
 __all__ = ['OutputGraph', 'Instruction', 'InstructionTranslator', 'convert_instruction']
@@ -102,7 +102,6 @@ BINARY_MAPPER = {
     'ipow': 'INPLACE_POWER',
     'isub': 'INPLACE_SUBTRACT',
     'itruediv': 'INPLACE_TRUE_DIVIDE',
-    'is_': 'IS_OP',
 }
 
 UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
@@ -147,9 +146,7 @@ class InstructionTranslatorBase:
         # add output node
         stack_values = list(self.stack)
         self.output.create_node('output', 'output', stack_values, {})
-        if self.frame.f_locals.get('self', None):
-            root = self.frame.f_locals.get('self')
-        else:
+        if not (root := self.frame.f_locals.get('self', None)):
             root = paddle.nn.Layer()
         gl = GraphLayer(root, self.output.graph)
         self.call_user_compiler(gl)
@@ -183,6 +180,8 @@ class InstructionTranslatorBase:
         # TODO: add `self.call_function` to handle more functions
         if fn is print:
             self.push(None)
+        elif isinstance(fn, Attribute):
+            self.push(fn(*args, **kwargs))
         elif fn is isinstance:
             res = self.output.create_node('call_function', fn, args, kwargs)
             self.push(res)
@@ -228,30 +227,25 @@ class InstructionTranslatorBase:
 
     def LOAD_METHOD(self, inst: Instruction):
         target = self.pop()
-        if isinstance(target, str) and target.startswith("self"):
-            fn = f"{target}.{inst.argval}"
-        elif isinstance(target, Proxy) and target.node.name.startswith("self"):
-            fn = f"{target.node.name}.{inst.argval}"
-        else:
-            fn = getattr(target, inst.argval)
+        fn = getattr(target, inst.argval)
         self.push(fn)
 
     def CALL_METHOD(self, inst: Instruction):
         args = self.popn(inst.argval)
         fn = self.pop()
-        if isinstance(fn, str):
-            if fn.startswith("self"):
-                res = self.output.create_node('call_module', fn[5:], args, {})
+        if isinstance(fn, Attribute):
+            fn_name = repr(fn)
+            if fn_name.startswith("self"):
+                res = self.output.create_node('call_module', fn.attr, args, {})
             else:
-                # TODO(zrr1999) call_method is not implemented.
-                raise NotImplemented
-                # res = self.output.create_node('call_method', fn, args, {})
+                res = fn(*args)
             self.push(res)
         else:
+            # TODO(zrr1999) other class should be handled separately.
             if hasattr(fn, "forward"):
                 fn = fn.forward
             if fn is not None:
-                res = self.output.create_node('call_function', fn, args, {})
+                res = self.call_function(fn, args, {})
                 self.push(res)
             else:
                 self.push(None)
@@ -286,7 +280,6 @@ class InstructionTranslatorBase:
         self.push(result)
 
     def BUILD_CONST_KEY_MAP(self, inst):
-        # TODO(zrr1999): add assert
         keys = self.pop()
         values = self.popn(inst.argval)
         self.push(dict(zip(keys, values)))
@@ -294,7 +287,10 @@ class InstructionTranslatorBase:
     def BINARY_SUBSCR(self, inst):
         idx = self.pop()
         root = self.pop()
-        res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
+        if isinstance(root, Proxy):
+            res = root[idx]
+        else:
+            res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
         self.push(res)
 
     def STORE_SUBSCR(self, inst):
@@ -328,6 +324,27 @@ class InstructionTranslatorBase:
         }
         op = getattr(operator, op_mapper[inst.argval])
         args = self.popn(2)
+        res = self.output.create_node('call_function', op, args, {})
+        self.push(res)
+
+    # note: python3.9+
+    def IS_OP(self, inst: Instruction):
+        invert = inst.argval
+        args = self.popn(2)
+        if invert:
+            op = operator.is_
+        else:
+            op = operator.is_not
+        res = self.output.create_node('call_function', op, args, {})
+        self.push(res)
+
+    def CONTAINS_OP(self, inst: Instruction):
+        invert = inst.argval
+        args = self.popn(2)
+        if invert:
+            op = operator.contains
+        else:
+            op = lambda a, b: b not in a
         res = self.output.create_node('call_function', op, args, {})
         self.push(res)
 
