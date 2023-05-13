@@ -66,8 +66,16 @@ def _compile(
             return GuardedCode(code)
     instructions = list(map(convert_instruction, dis.get_instructions(code)))
 
-    tracer = InstructionTranslator(instructions, frame, compiler_fn)
+    # tracer
+    tracer = InstructionTranslator(
+        instructions=instructions,
+        frame=frame,
+        compiler_fn=compiler_fn,
+    )
     tracer.run()
+
+    output = tracer.output
+    # instructions = output.output_instructions
 
     # NOTE: just return the raw code from catched frame
     # TODO: support cache

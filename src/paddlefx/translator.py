@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import dis
+import itertools
 import operator
 import types
 
@@ -15,11 +16,6 @@ from .proxy import Attribute, Proxy
 from .symbolic_trace import Tracer
 
 __all__ = ['OutputGraph', 'Instruction', 'InstructionTranslator', 'convert_instruction']
-
-
-class OutputGraph(Tracer):
-    def __init__(self):
-        super().__init__()
 
 
 @dataclasses.dataclass
@@ -55,6 +51,12 @@ def convert_instruction(i: dis.Instruction):
     )
 
 
+def create_instruction(name, *, arg=None, argval=None, target=None):
+    return Instruction(
+        opcode=dis.opmap[name], opname=name, arg=arg, argval=argval, target=target
+    )
+
+
 def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
@@ -79,6 +81,83 @@ def _not_implemented(op_name):
         raise NotImplementedError()
 
     return _not_impl
+
+
+_unique_id_counter = itertools.count()
+
+
+# TODO: better code organization
+
+
+def unique_id(name):
+    return f"{name}_{next(_unique_id_counter)}"
+
+
+class OutputGraph(Tracer):
+    def __init__(
+        self,
+        *,
+        f_globals: dict[str, Any],
+        compiler_fn: Any,
+    ):
+        super().__init__()
+
+        # udf
+        self.f_globals = f_globals
+        self.compiler_fn = compiler_fn
+
+        self.output_instructions: list[Instruction] = []
+
+    def install_global(self, name, value) -> None:
+        self.f_globals[name] = value
+
+    def add_output_instructions(self, prefix: list[Instruction]) -> None:
+        self.output_instructions.extend(prefix)
+
+    def call_user_compiler(self, gl):
+        compiled_fn = self.compiler_fn(gl)
+        return compiled_fn
+
+    def compile_and_call_fx_graph(self, tx, rv, root):
+        self.create_node("output", "output", tuple(x for x in rv), {})
+
+        gl = GraphLayer(root, self.graph)
+        compiled_fn = self.call_user_compiler(gl)
+        # TODO: add `disable()`
+        # compiled_fn = disable(compiled_fn)
+
+        name = unique_id("__compiled_fn")
+        self.install_global(name, compiled_fn)
+
+        from .codegen import PyCodegen
+
+        cg = PyCodegen(tx)
+        cg.make_call_generated_code(name)
+        return cg.get_instructions()
+
+    def compile_subgraph(
+        self,
+        tx: InstructionTranslatorBase,
+    ):
+        # add output node
+        stack_values = list(tx.stack)
+
+        if not (root := tx.frame.f_locals.get('self', None)):
+            root = paddle.nn.Layer()
+
+        # TODO: add call_function Instructions to compiled_fn
+
+        self.add_output_instructions(
+            self.compile_and_call_fx_graph(tx, list(reversed(stack_values)), root)
+            + [create_instruction("UNPACK_SEQUENCE", arg=len(stack_values))]
+        )
+
+        # codegen = PyCodegen(tx)
+        # TODO
+        # # restore all the live local vars
+        # self.add_output_instructions(
+        #     [PyCodegen(tx).create_store(var) for var in reversed(restore_vars)]
+        # )
 
 
 BINARY_MAPPER = {
@@ -123,33 +202,19 @@ CONSTRUCTOR = [_binary_constructor, _unary_constructor, _not_implemented]
 class InstructionTranslatorBase:
     def __init__(
         self,
+        *,
         instructions: list[Instruction],
         frame: types.FrameType,
-        compiler_fn: Any,
         output: OutputGraph,
     ):
         self.instructions: list[Instruction] = instructions
         self.frame: types.FrameType = frame
-        self.compiler_fn = compiler_fn
         self.output: OutputGraph = output
 
         self.f_locals = {}
         self.stack = []
         for k, _ in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
-
-    def call_user_compiler(self, gl):
-        compiled_fn = self.compiler_fn(gl)
-        return compiled_fn
-
-    def compile_subgraph(self):
-        # add output node
-        stack_values = list(self.stack)
-        self.output.create_node('output', 'output', stack_values, {})
-        if not (root := self.frame.f_locals.get('self', None)):
-            root = paddle.nn.Layer()
-        gl = GraphLayer(root, self.output.graph)
-        self.call_user_compiler(gl)
 
     def pop(self):
         return self.stack.pop()
@@ -167,6 +232,7 @@ class InstructionTranslatorBase:
             return [self.pop() for _ in range(n)]
 
     def call_function(self, fn, args, kwargs):
+        # TODO: implement InlineTranslator
         is_custom_call = False
         for arg in args:
             if isinstance(arg, (Proxy, paddle.Tensor)):
@@ -177,7 +243,6 @@ class InstructionTranslatorBase:
                 is_custom_call = True
                 break
 
-        # TODO: add `self.call_function` to handle more functions
         if fn is print:
             self.push(None)
         elif isinstance(fn, Attribute):
@@ -309,7 +374,7 @@ class InstructionTranslatorBase:
         self.push(self.f_locals[inst.argval])
 
     def RETURN_VALUE(self, inst: Instruction):
-        self.compile_subgraph()
+        self.output.compile_subgraph(self)
 
     def COMPARE_OP(self, inst: Instruction):
         op_mapper = {
@@ -361,11 +426,20 @@ for mapper, constructor in zip(OP_MAPPER, CONSTRUCTOR):
 class InstructionTranslator(InstructionTranslatorBase):
     def __init__(
         self,
+        *,
         instructions: list[Instruction],
         frame: types.FrameType,
         compiler_fn: Any,
     ):
-        super().__init__(instructions, frame, compiler_fn, OutputGraph())
+        output = OutputGraph(
+            f_globals=frame.f_globals,
+            compiler_fn=compiler_fn,
+        )
+        super().__init__(
+            instructions=instructions,
+            frame=frame,
+            output=output,
+        )
 
     def step(self, inst: Instruction):
         if not hasattr(self, inst.opname):
