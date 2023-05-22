@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import dis
+import itertools
 import operator
 import types
 
@@ -11,8 +12,16 @@ import paddle
 import paddle.nn
 
 from .graph_layer import GraphLayer
-from .proxy import Attribute, Proxy
+from .proxy import Proxy
 from .symbolic_trace import Tracer
+from .variables import (
+    BuiltinVariable,
+    CallableVariable,
+    ConstantVariable,
+    ModuleVariable,
+    ObjectVariable,
+    VariableBase,
+)
 
 __all__ = ['OutputGraph', 'Instruction', 'InstructionTranslator', 'convert_instruction']
 
@@ -59,7 +68,7 @@ def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
         args = self.popn(2)
-        res = self.output.create_node('call_function', op, args, {})
+        res = ObjectVariable(self.output.create_node('call_function', op, args, {}))
         self.push(res)
 
     return _binary
@@ -68,7 +77,9 @@ def _binary_constructor(op_name: str):
 def _unary_constructor(op_name: str):
     def _unary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        res = self.output.create_node('call_function', op, self.pop(), {})
+        res = ObjectVariable(
+            self.output.create_node('call_function', op, self.pop(), {})
+        )
         self.push(res)
 
     return _unary
@@ -134,9 +145,14 @@ class InstructionTranslatorBase:
         self.output: OutputGraph = output
 
         self.f_locals = {}
-        self.stack = []
+        self.f_builtins: dict[str, Any] = {"print": print}  # TODO: add more builtins
+        self.stack: list[VariableBase] = []
+        self.symbolic_locals: dict[str, VariableBase] = {}
+        self.symbolic_globals: dict[str, VariableBase] = {}
+        # TODO: add vars in symbolic_globals
         for k, _ in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
+            self.symbolic_locals[k] = ObjectVariable(self.f_locals[k])
 
     def call_user_compiler(self, gl):
         compiled_fn = self.compiler_fn(gl)
@@ -151,13 +167,13 @@ class InstructionTranslatorBase:
         gl = GraphLayer(root, self.output.graph)
         self.call_user_compiler(gl)
 
-    def pop(self):
-        return self.stack.pop()
-
     def push(self, item):
         return self.stack.append(item)
 
-    def popn(self, n: int, reverse=True):
+    def pop(self) -> VariableBase:
+        return self.stack.pop()
+
+    def popn(self, n: int, reverse=True) -> list[VariableBase]:
         assert n >= 0
         if not n:
             return []
@@ -166,43 +182,64 @@ class InstructionTranslatorBase:
         else:
             return [self.pop() for _ in range(n)]
 
-    def call_function(self, fn, args, kwargs):
-        is_custom_call = False
-        for arg in args:
-            if isinstance(arg, (Proxy, paddle.Tensor)):
-                is_custom_call = True
-                break
-        for arg in kwargs:
-            if isinstance(arg, (Proxy, paddle.Tensor)):
-                is_custom_call = True
-                break
+    def call_function(
+        self,
+        fn: CallableVariable | ObjectVariable,
+        args: list[VariableBase],
+        kwargs: dict[str, VariableBase],
+    ):
+        assert isinstance(fn, CallableVariable | ObjectVariable)
+        assert isinstance(args, list)
+        assert isinstance(kwargs, dict)
+        assert all(
+            isinstance(x, VariableBase) for x in itertools.chain(args, kwargs.values())
+        )
+        self.push(ObjectVariable(fn.call_function(self, args, kwargs)))
+        print(self.stack)
 
-        # TODO: add `self.call_function` to handle more functions
-        if fn is print:
-            self.push(None)
-        elif isinstance(fn, Attribute):
-            self.push(fn(*args, **kwargs))
-        elif fn is isinstance:
-            res = self.output.create_node('call_function', fn, args, kwargs)
-            self.push(res)
-        elif fn.__module__.startswith("paddle"):
-            if hasattr(fn, "forward"):
-                fn = fn.forward
-            res = self.output.create_node('call_function', fn, args, kwargs)
-            self.push(res)
-        elif is_custom_call:
-            raise NotImplementedError(f"custom_call is not supported")
-        else:
-            raise NotImplementedError(f"call function {fn} is not supported")
+        # is_custom_call = False
+        # for arg in args:
+        #     if isinstance(arg, (Proxy, paddle.Tensor)):
+        #         is_custom_call = True
+        #         break
+        # for arg in kwargs:
+        #     if isinstance(arg, (Proxy, paddle.Tensor)):
+        #         is_custom_call = True
+        #         break
+
+        # # TODO: add `self.call_function` to handle more functions
+        # if fn is print:
+        #     self.push(None)
+        # elif isinstance(fn, Attribute):
+        #     self.push(fn(*args, **kwargs))
+        # elif fn is isinstance:
+        #     res = self.output.create_node('call_function', fn, args, kwargs)
+        #     self.push(res)
+        # elif fn.__module__.startswith("paddle"):
+        #     if hasattr(fn, "forward"):
+        #         fn = fn.forward
+        #     res = self.output.create_node('call_function', fn, args, kwargs)
+        #     self.push(res)
+        # elif is_custom_call:
+        #     raise NotImplementedError(f"custom_call is not supported")
+        # else:
+        #     raise NotImplementedError(f"call function {fn} is not supported")
 
     def LOAD_GLOBAL(self, inst: Instruction):
         name = inst.argval
-        if name in self.frame.f_globals:
-            self.push(self.frame.f_globals[name])
-        elif name in self.frame.f_builtins:
-            self.push(self.frame.f_builtins[name])
+        if name in self.symbolic_globals:
+            var = self.symbolic_globals[name]
+        elif name in self.frame.f_globals:
+            var = ModuleVariable(self.frame.f_globals[name])
+        elif name in self.f_builtins:
+            val = self.f_builtins[inst.argval]
+            if callable(val):
+                var = BuiltinVariable(val)
+            else:
+                var = ConstantVariable(val)
         else:
             raise Exception(f"name '{name}' is not found")
+        self.push(var)
 
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
         pass
@@ -211,14 +248,27 @@ class InstructionTranslatorBase:
         pass
 
     def LOAD_CONST(self, inst: Instruction):
-        value = inst.argval
+        value = ConstantVariable(inst.argval)
         self.push(value)
 
     def LOAD_ATTR(self, inst: Instruction):
+        name = inst.argval
         obj = self.pop()
-        if isinstance(obj, Proxy) and obj.node.name.startswith("self"):
+        if isinstance(obj, ModuleVariable):
+            res = getattr(obj, name)
+            self.push(res)
+        elif isinstance(obj, ObjectVariable):
+            # if isinstance(getattr(obj.obj, name), paddle.nn.Layer):
+            res = BuiltinVariable(getattr).call_function(
+                self, [obj, ConstantVariable(name)], {}
+            )
+            self.push(res)
+        elif isinstance(obj, Proxy) and obj.node.name.startswith("self"):
             res = self.output.create_node('get_param', inst.argval)
             self.push(res)
+        elif hasattr(obj, inst.argval):
+            value = getattr(obj, inst.argval)
+            self.push(value)
         elif hasattr(obj, inst.argval):
             value = getattr(obj, inst.argval)
             self.push(value)
@@ -226,29 +276,29 @@ class InstructionTranslatorBase:
             self.push(None)
 
     def LOAD_METHOD(self, inst: Instruction):
-        target = self.pop()
-        fn = getattr(target, inst.argval)
-        self.push(fn)
+        self.LOAD_ATTR(inst)
 
     def CALL_METHOD(self, inst: Instruction):
         args = self.popn(inst.argval)
         fn = self.pop()
-        if isinstance(fn, Attribute):
-            fn_name = repr(fn)
-            if fn_name.startswith("self"):
-                res = self.output.create_node('call_module', fn.attr, args, {})
-            else:
-                res = fn(*args)
-            self.push(res)
-        else:
-            # TODO(zrr1999) other class should be handled separately.
-            if hasattr(fn, "forward"):
-                fn = fn.forward
-            if fn is not None:
-                res = self.call_function(fn, args, {})
-                self.push(res)
-            else:
-                self.push(None)
+        assert isinstance(fn, CallableVariable | ObjectVariable)
+        self.call_function(fn, args, {})
+        # if isinstance(fn, Attribute):
+        #     fn_name = repr(fn)
+        #     if fn_name.startswith("self"):
+        #         res = self.output.create_node('call_module', fn.attr, args, {})
+        #     else:
+        #         res = fn(*args)
+        #     self.push(res)
+        # else:
+        #     # TODO(zrr1999) other class should be handled separately.
+        #     if hasattr(fn, "forward"):
+        #         fn = fn.forward
+        #     if fn is not None:
+        #         res = self.call_function(fn, args, {})
+        #         self.push(res)
+        #     else:
+        #         self.push(None)
 
     def CALL_FUNCTION(self, inst: Instruction):
         args = self.popn(inst.argval)
@@ -287,26 +337,34 @@ class InstructionTranslatorBase:
     def BINARY_SUBSCR(self, inst):
         idx = self.pop()
         root = self.pop()
-        if isinstance(root, Proxy):
-            res = root[idx]
+        if isinstance(root, ObjectVariable):
+            res = root.call_method(self, "__getitem__", [root, idx], {})
+            self.push(res)
         else:
-            res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
-        self.push(res)
+            # TODO
+            raise NotImplementedError(f"type({root}) = {type(root)}")
 
     def STORE_SUBSCR(self, inst):
         value = self.pop()
         idx = self.pop()
         root = self.pop()
-        self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
+        if isinstance(root, ObjectVariable):
+            res = root.call_method(self, "__setitem__", [root, idx, value], {})
+            self.push(res)
+        else:
+            # TODO
+            raise NotImplementedError(f"type({root}) = {type(root)}")
 
     def POP_TOP(self, inst: Instruction):
         value = self.pop()
 
     def STORE_FAST(self, inst: Instruction):
-        self.f_locals[inst.argval] = self.pop()
+        self.symbolic_locals[inst.argval] = self.pop()
 
     def LOAD_FAST(self, inst: Instruction):
-        self.push(self.f_locals[inst.argval])
+        var = self.symbolic_locals[inst.argval]
+        print(var, type(var))
+        self.push(var)
 
     def RETURN_VALUE(self, inst: Instruction):
         self.compile_subgraph()
@@ -374,4 +432,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
+            print(inst)
             self.step(inst)
