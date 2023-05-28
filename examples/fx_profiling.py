@@ -81,7 +81,7 @@ class ProfilingInterpreter(Interpreter):
             # time each node took with respect to the whole network.
             pct_total = mean_runtime / mean_total_runtime * 100
             # Record the node's type, name of the node, mean runtime, and
-            # percent runtim
+            # percent runtime
             node_summaries.append([node.op, str(node), mean_runtime, pct_total])
 
         # One of the most important questions to answer when doing performance
