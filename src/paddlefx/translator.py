@@ -108,6 +108,16 @@ class OutputGraph(Tracer):
 
         self.output_instructions: list[Instruction] = []
 
+    @property
+    def placeholders(self):
+        r = []
+        for node in self.graph.nodes:
+            if node.op == "placeholder":
+                r.append(node)
+                continue
+            break
+        return r
+
     def install_global(self, name, value) -> None:
         self.f_globals[name] = value
 
@@ -119,21 +129,26 @@ class OutputGraph(Tracer):
         return compiled_fn
 
     def compile_and_call_fx_graph(self, tx, rv, root):
-        self.create_node("output", "output", tuple(x for x in rv), {})
+        from .codegen import PyCodegen
+        from .eval_frame import disable
+
+        # self.create_node("output", "output", tuple(x for x in rv), {})
 
         gl = GraphLayer(root, self.graph)
         compiled_fn = self.call_user_compiler(gl)
-        # TODO: add `disable()`
-        # compiled_fn = disable(compiled_fn)
+        compiled_fn = disable(compiled_fn)
 
         name = unique_id("__compiled_fn")
         self.install_global(name, compiled_fn)
 
-        from .codegen import PyCodegen
-
         cg = PyCodegen(tx)
         cg.make_call_generated_code(name)
         return cg.get_instructions()
+
+        # Instruction(opcode=116, opname='LOAD_GLOBAL', arg=False, argval='__compiled_fn_0', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='a', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='b', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=131, opname='CALL_FUNCTION', arg=2, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
 
     def compile_subgraph(
         self,
@@ -146,11 +161,19 @@ class OutputGraph(Tracer):
             root = paddle.nn.Layer()
 
         # TODO: add call_function Instructions to compiled_fn
-
-        self.add_output_instructions(
-            self.compile_and_call_fx_graph(tx, list(reversed(stack_values)), root)
-            + [create_instruction("UNPACK_SEQUENCE", arg=len(stack_values))]
+        instructions = []
+        instructions.extend(
+            self.compile_and_call_fx_graph(
+                tx,
+                list(reversed(stack_values)),
+                root,
+            )
         )
+
+        # for outputs == 0
+        instructions.append(create_instruction("POP_TOP"))
+
+        self.add_output_instructions(instructions)
 
         # codegen = PyCodegen(tx)
         # TODO
@@ -158,6 +181,15 @@ class OutputGraph(Tracer):
         # self.add_output_instructions(
         #     [PyCodegen(tx).create_store(var) for var in reversed(restore_vars)]
         # )
+
+        # Instruction(opcode=116, opname='LOAD_GLOBAL', arg=False, argval='__compiled_fn_0', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='a', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='b', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=131, opname='CALL_FUNCTION', arg=2, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        #
+        # Instruction(opcode=1, opname='POP_TOP', arg=None, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=100, opname='LOAD_CONST', arg=None, argval=None, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
+        # Instruction(opcode=83, opname='RETURN_VALUE', arg=None, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
 
 
 BINARY_MAPPER = {
@@ -375,6 +407,11 @@ class InstructionTranslatorBase:
 
     def RETURN_VALUE(self, inst: Instruction):
         self.output.compile_subgraph(self)
+        self.output.add_output_instructions(
+            [
+                create_instruction("RETURN_VALUE"),
+            ]
+        )
 
     def COMPARE_OP(self, inst: Instruction):
         op_mapper = {
@@ -447,5 +484,6 @@ class InstructionTranslator(InstructionTranslatorBase):
         getattr(self, inst.opname)(inst)
 
     def run(self):
+        # TODO: support graph break
         for inst in self.instructions:
             self.step(inst)

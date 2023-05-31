@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import dis
+import functools
 import inspect
 import types
 
@@ -11,6 +12,7 @@ import paddle
 import paddle.nn
 
 from ._eval_frame import set_eval_frame
+from .bytecode_transformation import assemble, get_code_keys
 from .translator import InstructionTranslator, convert_instruction
 
 
@@ -32,22 +34,35 @@ class DynamoContext:
         set_eval_frame(self.old_callback)
 
     def __call__(self, fn):
+        @functools.wraps(fn)
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
+            # try:
+            #     return fn(*args, **kwargs)
+            # finally:
+            #     set_eval_frame(old_callback)
+
             result = fn(*args, **kwargs)
-
             set_eval_frame(old_callback)
-
             return result
 
         return _fn
 
 
+class DisableContext(DynamoContext):
+    def __init__(self):
+        super().__init__(callback=None)
+
+
+def disable(fn=None):
+    return DisableContext()(fn)
+
+
 def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
-):
+) -> GuardedCode:
     # TODO(zrr1999): This part can be removed when running the converted bytecode in the future.
     paddle_modules = [
         "paddle.nn",
@@ -60,11 +75,11 @@ def _compile(
         raise RuntimeError('Cannot find module for frame')
     package_name = module.__name__
 
-    code = frame.f_code
+    f_code = frame.f_code
     for paddle_module in paddle_modules:
         if package_name.startswith(paddle_module):
-            return GuardedCode(code)
-    instructions = list(map(convert_instruction, dis.get_instructions(code)))
+            return GuardedCode(f_code)
+    instructions = list(map(convert_instruction, dis.get_instructions(f_code)))
 
     # tracer
     tracer = InstructionTranslator(
@@ -75,10 +90,19 @@ def _compile(
     tracer.run()
 
     output = tracer.output
-    # instructions = output.output_instructions
+    instructions = output.output_instructions
 
-    # NOTE: just return the raw code from catched frame
-    # TODO: support cache
+    keys = get_code_keys()
+    code_options = {k: getattr(f_code, k) for k in keys}
+    bytecode = assemble(instructions)
+    code_options["co_code"] = bytecode
+    code = types.CodeType(*[code_options[k] for k in keys])
+
+    # [print(x) for x in list(dis.get_instructions(code))]
+
+    # debug, no trace
+    return None
+
     g = GuardedCode(code)
     return g
 

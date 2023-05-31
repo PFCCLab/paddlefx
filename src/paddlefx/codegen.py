@@ -22,41 +22,33 @@ class PyCodegen:
     def extend_output(self, insts):
         assert all(isinstance(x, Instruction) for x in insts)
         self._output.extend(insts)
-        # self.clear_tos()
 
-    def make_call_generated_code(self, fn_name: str) -> list[Instruction]:
-        """Call the generated code function stored in fn_name."""
-        # self.extend_output(self.load_function_name(fn_name, True))
-
-        # graphargs = self.tx.output.graphargs
-        # for arg in graphargs:
-        #     self.extend_output(arg.load(self))
-
-        # self.extend_output(create_call_function(len(graphargs), False))
-
-        # LOAD_GLOBAL
-        # CALL_FUNCTION
-        out = []
-        out.append(
-            Instruction(
-                opcode=dis.opmap["LOAD_GLOBAL"],
-                opname="LOAD_GLOBAL",
-                arg=None,
-                argval=fn_name,
-            )
+    def make_call_generated_code(self, fn_name: str):
+        load_function = Instruction(
+            opcode=dis.opmap["LOAD_GLOBAL"],
+            opname="LOAD_GLOBAL",
+            arg=False,
+            argval=fn_name,
         )
-        out.append(
-            Instruction(
-                opcode=dis.opmap["CALL_FUNCTION"],
-                opname="CALL_FUNCTION",
+        self.extend_output([load_function])
+
+        placeholders = self.tx.output.placeholders
+        for x in placeholders:
+            load_fast = Instruction(
+                opcode=dis.opmap["LOAD_FAST"],
+                opname="LOAD_FAST",
                 arg=None,
-                argval=None,
+                argval=x.name,
             )
+            self.extend_output([load_fast])
+
+        call_function = Instruction(
+            opcode=dis.opmap["CALL_FUNCTION"],
+            opname="CALL_FUNCTION",
+            arg=len(placeholders),
+            argval=None,
         )
-
-        self.extend_output(out)
-
-        return out
+        self.extend_output([call_function])
 
     def get_instructions(self):
         return self._output
