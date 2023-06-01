@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import functools
-
 import paddle
 import paddle.nn
 
@@ -13,19 +11,18 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
     # gl.graph.print_tabular()
     # return gl.forward
 
-    xx = functools.partial(print, "aaaaa")
-    return xx
+    return print
 
 
 @paddlefx.optimize(my_compiler)
 def add(x, y):
     # print('call add')
     z = x + y
-    return z
+    return
 
 
-in_a = paddle.rand([3, 4])
-in_b = paddle.rand([3, 4])
+in_a = paddle.rand([1])
+in_b = paddle.rand([1])
 
 res = add(in_a, in_b)
 print(type(res))
