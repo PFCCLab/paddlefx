@@ -166,6 +166,11 @@ class OutputGraph(Tracer):
         compiled_fn = disable(compiled_fn)
 
         name = unique_id("__compiled_fn")
+
+        print(f"\n{name}:")
+        [print(x) for x in list(dis.get_instructions(compiled_fn))]
+        print(f"")
+
         self.install_global(name, compiled_fn)
 
         cg = PyCodegen(tx)
