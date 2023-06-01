@@ -172,11 +172,6 @@ class OutputGraph(Tracer):
         cg.make_call_generated_code(name)
         return cg.get_instructions()
 
-        # Instruction(opcode=116, opname='LOAD_GLOBAL', arg=False, argval='__compiled_fn_0', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='a', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='b', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=131, opname='CALL_FUNCTION', arg=2, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-
     def compile_subgraph(
         self,
         tx: InstructionTranslatorBase,
