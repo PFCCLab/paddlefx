@@ -19,6 +19,32 @@ __all__ = ['OutputGraph', 'Instruction', 'InstructionTranslator', 'convert_instr
 
 
 @dataclasses.dataclass
+class InstructionExnTabEntry:
+    start: Instruction
+    end: Instruction
+    target: Instruction
+    depth: int
+    lasti: bool
+
+    def __repr__(self):
+        return (
+            f"InstructionExnTabEntry(start={self.start.short_inst_repr()}, "
+            f"end={self.end.short_inst_repr()}, "
+            f"target={self.target.short_inst_repr()}, "
+            f"depth={self.depth}, lasti={self.lasti})"
+        )
+
+    def __eq__(self, o):
+        return (
+            self.start is o.start
+            and self.end is o.end
+            and self.target is o.target
+            and self.depth == o.depth
+            and self.lasti == o.lasti
+        )
+
+
+@dataclasses.dataclass
 class Instruction:
     """A mutable version of dis.Instruction."""
 
@@ -31,6 +57,7 @@ class Instruction:
     is_jump_target: bool = False
     # extra fields to make modification easier:
     target: Instruction | None = None
+    exn_tab_entry: Optional[InstructionExnTabEntry] = None
 
     def __hash__(self):
         return id(self)
@@ -172,6 +199,9 @@ class OutputGraph(Tracer):
 
         # for outputs == 0
         instructions.append(create_instruction("POP_TOP"))
+
+        # for outputs != 0
+        # instructions.append(create_instruction("UNPACK_SEQUENCE", arg=1))
 
         self.add_output_instructions(instructions)
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import dis
 import functools
-import inspect
 import types
 
 from typing import Callable
@@ -12,8 +11,8 @@ import paddle
 import paddle.nn
 
 from ._eval_frame import set_eval_frame
-from .bytecode_transformation import assemble, get_code_keys
-from .translator import InstructionTranslator, convert_instruction
+from .bytecode_transformation import transform_code_object
+from .translator import InstructionTranslator
 
 
 @dataclasses.dataclass
@@ -63,47 +62,32 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ) -> GuardedCode:
-    # TODO(zrr1999): This part can be removed when running the converted bytecode in the future.
-    paddle_modules = [
-        "paddle.nn",
-        "paddle.fluid",
-        "paddle.tensor",
-        # TODO(zrr1999): add more modules
-    ]
-    module = inspect.getmodule(frame)
-    if module is None:
-        raise RuntimeError('Cannot find module for frame')
-    package_name = module.__name__
-
     f_code = frame.f_code
-    for paddle_module in paddle_modules:
-        if package_name.startswith(paddle_module):
-            return GuardedCode(f_code)
-    instructions = list(map(convert_instruction, dis.get_instructions(f_code)))
 
-    # tracer
-    tracer = InstructionTranslator(
-        instructions=instructions,
-        frame=frame,
-        compiler_fn=compiler_fn,
-    )
-    tracer.run()
+    def transform(instructions, code_options):
+        # tracer
+        tracer = InstructionTranslator(
+            instructions=instructions,
+            frame=frame,
+            compiler_fn=compiler_fn,
+        )
+        tracer.run()
 
-    output = tracer.output
-    instructions = output.output_instructions
+        instructions[:] = tracer.output.output_instructions
 
-    keys = get_code_keys()
-    code_options = {k: getattr(f_code, k) for k in keys}
-    bytecode = assemble(instructions)
-    code_options["co_code"] = bytecode
-    code = types.CodeType(*[code_options[k] for k in keys])
+        # debug
+        code_options['co_names'] = ('__compiled_fn_0',)
 
-    # [print(x) for x in list(dis.get_instructions(code))]
+    out_code = transform_code_object(f_code, transform)
+
+    print(f"\nout_code")
+    [print(x) for x in list(dis.get_instructions(out_code))]
+    print(f"\n")
 
     # debug, no trace
-    return None
+    # return None
 
-    g = GuardedCode(code)
+    g = GuardedCode(out_code)
     return g
 
 
