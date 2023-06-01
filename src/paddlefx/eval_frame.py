@@ -75,12 +75,16 @@ def _compile(
 
         instructions[:] = tracer.output.output_instructions
 
-        # debug
+        # TODO: add attr code_options to `tracer.output`
         code_options['co_names'] = ('__compiled_fn_0',)
 
     out_code = transform_code_object(f_code, transform)
 
-    print(f"\nout_code:")
+    print(f"\nraw_code:")
+    [print(x) for x in list(dis.get_instructions(f_code))]
+    print(f"")
+
+    print(f"\ntransformed_code:")
     [print(x) for x in list(dis.get_instructions(out_code))]
     print(f"")
 
