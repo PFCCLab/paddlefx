@@ -181,13 +181,11 @@ class OutputGraph(Tracer):
         self,
         tx: InstructionTranslatorBase,
     ):
-        # add output node
         stack_values = list(tx.stack)
 
         if not (root := tx.frame.f_locals.get('self', None)):
             root = paddle.nn.Layer()
 
-        # TODO: add call_function Instructions to compiled_fn
         instructions = []
         instructions.extend(
             self.compile_and_call_fx_graph(
@@ -198,28 +196,12 @@ class OutputGraph(Tracer):
         )
 
         # for outputs == 0
-        instructions.append(create_instruction("POP_TOP"))
+        # instructions.append(create_instruction("POP_TOP"))
 
         # for outputs != 0
         # instructions.append(create_instruction("UNPACK_SEQUENCE", arg=1))
 
         self.add_output_instructions(instructions)
-
-        # codegen = PyCodegen(tx)
-        # TODO
-        # # restore all the live local vars
-        # self.add_output_instructions(
-        #     [PyCodegen(tx).create_store(var) for var in reversed(restore_vars)]
-        # )
-
-        # Instruction(opcode=116, opname='LOAD_GLOBAL', arg=False, argval='__compiled_fn_0', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='a', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=124, opname='LOAD_FAST', arg=None, argval='b', offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=131, opname='CALL_FUNCTION', arg=2, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        #
-        # Instruction(opcode=1, opname='POP_TOP', arg=None, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=100, opname='LOAD_CONST', arg=None, argval=None, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
-        # Instruction(opcode=83, opname='RETURN_VALUE', arg=None, argval=<class 'torch._dynamo.bytecode_transformation._NotProvided'>, offset=None, starts_line=None, is_jump_target=False, target=None, exn_tab_entry=None)
 
 
 BINARY_MAPPER = {
