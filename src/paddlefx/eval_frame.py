@@ -80,9 +80,9 @@ def _compile(
 
     out_code = transform_code_object(f_code, transform)
 
-    print(f"\nout_code")
+    print(f"\nout_code:")
     [print(x) for x in list(dis.get_instructions(out_code))]
-    print(f"\n")
+    print(f"")
 
     # debug, no trace
     # return None

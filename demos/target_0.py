@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import logging
+
+# ignore DeprecationWarning from `pkg_resources`
+logging.captureWarnings(True)
+
+
 import paddle
 import paddle.nn
 
