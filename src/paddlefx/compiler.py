@@ -50,16 +50,16 @@ def prepare_data(gm: paddlefx.GraphLayer, inputs):
 
 def importer(gm: paddlefx.GraphLayer, inputs):
     # Initialize the symbol table.
-    symbolTable = {}
+    symbol_table = {}
     # Create a module and build the operations into the module.
     module = Module.create()
     with InsertionPoint(module.body):
         # Parse the arguments.
         arguments = []
         for arg in inputs:
-            shapeList = list(arg.shape)
+            shape_list = list(arg.shape)
             f32 = F32Type.get()
-            tensorArg = RankedTensorType.get(shapeList, f32)
+            tensorArg = RankedTensorType.get(shape_list, f32)
             arguments.append(tensorArg)
 
         # Generate the function.
@@ -69,44 +69,44 @@ def importer(gm: paddlefx.GraphLayer, inputs):
             argsList = list(args)
             # Traverse the graph and generate IR.
             for node in gm.graph.nodes:
-                codegen(node, symbolTable, argsList)
-            return symbolTable.get("output")
+                codegen(node, symbol_table, argsList)
+            return symbol_table.get("output")
 
         generated_func.func_op.attributes["llvm.emit_c_interface"] = UnitAttr.get()
     print("-------------------------------------------------------------------")
     print("Printing the symbol table ...")
-    # for symbol, op in symbolTable.items():
+    # for symbol, op in symbol_table.items():
     #     import rich
     #     print(symbol, ": ", op)
 
     print("-------------------------------------------------------------------")
     print("Printing the generated MLIR ...")
     # print(module)
-    # assert symbolTable["output"].type.dump() == "tensor<1x3x224x224xf32>"
+    # assert symbol_table["output"].type.dump() == "tensor<1x3x224x224xf32>"
     # meta_info = {
     #     "inputs": []
     # }
     return module
 
 
-def codegen(node: paddlefx.Node, symbolTable, argsList):
+def codegen(node: paddlefx.Node, symbol_table, argsList):
     if node.op == "placeholder":
         # Bind the placeholder with args.
-        symbolTable[str(node.name)] = argsList[0]
+        symbol_table[str(node.name)] = argsList[0]
         argsList.pop(0)
     if node.op == "call_function":
         # Parse a call_function operation.
         if node.target.__name__ == "add":
             # Generate add operation.
-            input1 = symbolTable.get(str(node.args[0]))
-            input2 = symbolTable.get(str(node.args[1]))
+            input1 = symbol_table.get(str(node.args[0]))
+            input2 = symbol_table.get(str(node.args[1]))
             op = arith.AddFOp(input1, input2)
-            symbolTable[str(node.name)] = op.result
+            symbol_table[str(node.name)] = op.result
 
     if node.op == "output":
         # Generating return operation.
-        ret = symbolTable.get(str(node.args[0]))
-        symbolTable["output"] = ret
+        ret = symbol_table.get(str(node.args[0]))
+        symbol_table["output"] = ret
 
 
 def lowering(module: Module):
