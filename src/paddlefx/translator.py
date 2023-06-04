@@ -155,7 +155,10 @@ class InstructionTranslatorBase:
             self.symbolic_locals[k] = ObjectVariable(self.f_locals[k])
 
     def call_user_compiler(self, gl):
-        compiled_fn = self.compiler_fn(gl)
+        # TODO: inputs should be changed.
+        compiled_fn = self.compiler_fn(
+            gl, [paddle.rand([1, 3, 224, 224]), paddle.rand([1, 3, 224, 224])]
+        )
         return compiled_fn
 
     def compile_subgraph(self):
@@ -165,7 +168,7 @@ class InstructionTranslatorBase:
         if not (root := self.frame.f_locals.get('self', None)):
             root = paddle.nn.Layer()
         gl = GraphLayer(root, self.output.graph)
-        self.call_user_compiler(gl)
+        compiled_fn = self.call_user_compiler(gl)
 
     def push(self, item):
         return self.stack.append(item)
@@ -432,5 +435,5 @@ class InstructionTranslator(InstructionTranslatorBase):
 
     def run(self):
         for inst in self.instructions:
-            print(inst)
+            # print(inst)
             self.step(inst)
