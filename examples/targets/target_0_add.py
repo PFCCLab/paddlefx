@@ -35,7 +35,6 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
 
 @paddlefx.optimize(my_compiler)
 def add(x, y):
-    # print('call add')
     z = x + y
     return z
 
