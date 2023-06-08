@@ -16,6 +16,9 @@ from .bytecode_analysis import (
     stacksize_analysis,
 )
 
+# directly copied torch, will keep update with torch
+# https://github.com/pytorch/pytorch/blob/main/torch/_dynamo/bytecode_transformation.py
+
 
 @dataclasses.dataclass
 class InstructionExnTabEntry:

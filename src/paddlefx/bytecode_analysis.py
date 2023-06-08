@@ -7,6 +7,9 @@ import sys
 
 from numbers import Real
 
+# directly copied torch, will keep update with torch
+# https://github.com/pytorch/pytorch/blob/main/torch/_dynamo/bytecode_analysis.py
+
 TERMINAL_OPCODES = {
     dis.opmap["RETURN_VALUE"],
     dis.opmap["JUMP_FORWARD"],

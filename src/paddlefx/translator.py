@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import dis
 import itertools
+import logging
 import operator
 import types
 
@@ -16,6 +17,8 @@ from .proxy import Attribute, Proxy
 from .symbolic_trace import Tracer
 
 __all__ = ['OutputGraph', 'Instruction', 'InstructionTranslator', 'convert_instruction']
+
+# TODO: better code organization
 
 
 @dataclasses.dataclass
@@ -57,7 +60,7 @@ class Instruction:
     is_jump_target: bool = False
     # extra fields to make modification easier:
     target: Instruction | None = None
-    exn_tab_entry: Optional[InstructionExnTabEntry] = None
+    exn_tab_entry: InstructionExnTabEntry | None = None
 
     def __hash__(self):
         return id(self)
@@ -113,9 +116,6 @@ def _not_implemented(op_name):
 _unique_id_counter = itertools.count()
 
 
-# TODO: better code organization
-
-
 def unique_id(name):
     return f"{name}_{next(_unique_id_counter)}"
 
@@ -159,7 +159,7 @@ class OutputGraph(Tracer):
         from .codegen import PyCodegen
         from .eval_frame import disable
 
-        # self.create_node("output", "output", tuple(x for x in rv), {})
+        self.create_node("output", "output", tuple(x for x in rv), {})
 
         gl = GraphLayer(root, self.graph)
         compiled_fn = self.call_user_compiler(gl)
@@ -167,9 +167,13 @@ class OutputGraph(Tracer):
 
         name = unique_id("__compiled_fn")
 
-        print(f"\n{name}:")
-        [print(x) for x in list(dis.get_instructions(compiled_fn))]
-        print(f"")
+        logging.debug(f"\n{name}:")
+        [logging.debug(x) for x in list(dis.get_instructions(compiled_fn))]
+        logging.debug(f"")
+
+        logging.debug(f"\n{name}.fn:")
+        [logging.debug(x) for x in list(dis.get_instructions(compiled_fn.fn))]
+        logging.debug(f"")
 
         self.install_global(name, compiled_fn)
 
