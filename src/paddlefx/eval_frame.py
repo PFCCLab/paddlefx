@@ -74,14 +74,12 @@ def _compile(
         tracer = InstructionTranslator(
             instructions=instructions,
             frame=frame,
+            code_options=code_options,
             compiler_fn=compiler_fn,
         )
         tracer.run()
 
         instructions[:] = tracer.output.output_instructions
-
-        # TODO: add attr code_options to `tracer.output`
-        code_options['co_names'] = ('__compiled_fn_0',)
 
     out_code = transform_code_object(f_code, transform)
 

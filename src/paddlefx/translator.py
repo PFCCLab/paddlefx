@@ -125,12 +125,13 @@ class OutputGraph(Tracer):
         self,
         *,
         f_globals: dict[str, Any],
+        code_options: dict,
         compiler_fn: Any,
     ):
         super().__init__()
 
-        # udf
         self.f_globals = f_globals
+        self.code_options = code_options
         self.compiler_fn = compiler_fn
 
         self.output_instructions: list[Instruction] = []
@@ -147,6 +148,10 @@ class OutputGraph(Tracer):
 
     def install_global(self, name, value) -> None:
         self.f_globals[name] = value
+
+    def update_co_names(self, name: str):
+        if name not in self.code_options["co_names"]:
+            self.code_options["co_names"] += (name,)
 
     def add_output_instructions(self, prefix: list[Instruction]) -> None:
         self.output_instructions.extend(prefix)
@@ -484,10 +489,12 @@ class InstructionTranslator(InstructionTranslatorBase):
         *,
         instructions: list[Instruction],
         frame: types.FrameType,
+        code_options: dict,
         compiler_fn: Any,
     ):
         output = OutputGraph(
             f_globals=frame.f_globals,
+            code_options=code_options,
             compiler_fn=compiler_fn,
         )
         super().__init__(

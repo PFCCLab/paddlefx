@@ -31,6 +31,7 @@ class PyCodegen:
             argval=fn_name,
         )
         self.extend_output([load_function])
+        self.tx.output.update_co_names(fn_name)
 
         placeholders = self.tx.output.placeholders
         for x in placeholders:
