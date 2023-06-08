@@ -18,9 +18,7 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
     print("my_compiler() called with FX graph:")
     gl.graph.print_tabular()
 
-    # TODO: mv recompile() out of it
-    code = gl.recompile()
-    print(code)
+    print(gl._code)
     # [print(x) for x in dis.get_instructions(gl.forward)]
     return gl.forward
 

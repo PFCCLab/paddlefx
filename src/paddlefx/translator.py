@@ -162,6 +162,8 @@ class OutputGraph(Tracer):
         self.create_node("output", "output", tuple(x for x in rv), {})
 
         gl = GraphLayer(root, self.graph)
+        gl.recompile()
+
         compiled_fn = self.call_user_compiler(gl)
         compiled_fn = disable(compiled_fn)
 
