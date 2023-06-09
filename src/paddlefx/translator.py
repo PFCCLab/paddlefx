@@ -167,18 +167,19 @@ class OutputGraph(Tracer):
         self.create_node("output", "output", tuple(x for x in rv), {})
 
         gl = GraphLayer(root, self.graph)
-        gl.recompile()
 
         compiled_fn = self.call_user_compiler(gl)
         compiled_fn = disable(compiled_fn)
 
         name = unique_id("__compiled_fn")
 
-        logging.debug(f"\n{name}:")
+        logging.debug(f"{name} - gl.src:\n{gl.src}")
+
+        logging.debug(f"{name}:")
         [logging.debug(x) for x in list(dis.get_instructions(compiled_fn))]
         logging.debug(f"")
 
-        logging.debug(f"\n{name}.fn:")
+        logging.debug(f"{name}.fn:")
         [logging.debug(x) for x in list(dis.get_instructions(compiled_fn.fn))]
         logging.debug(f"")
 

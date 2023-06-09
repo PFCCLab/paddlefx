@@ -1,7 +1,6 @@
 # type: ignore
 from __future__ import annotations
 
-import hashlib
 import linecache
 
 import paddle
@@ -38,21 +37,6 @@ def patched_getline(*args, **kwargs):
 linecache.getlines = patched_getline
 
 
-def _exec_with_source(src: str, globals: Dict[str, Any]):
-    # TODO: how to gen key
-    key = hashlib.md5(src.encode()).digest().hex()
-    exec(compile(src, key, 'exec'), globals)
-
-
-def _forward_from_src(src: str, globals: Dict[str, Any]):
-    # avoid mutating the passed in dict
-    globals_copy = globals.copy()
-    _exec_with_source(src, globals_copy)
-    forward_fn = globals_copy['forward']
-    del globals_copy['forward']
-    return forward_fn
-
-
 class GraphLayer(paddle.nn.Layer):
     def __new__(cls, *args, **kwargs):
         # each instance of a graph module needs its own forward method
@@ -79,17 +63,6 @@ class GraphLayer(paddle.nn.Layer):
 
         self.graph = graph
         self._generate_forward()
-
-    def recompile(self):
-        python_code = self.get_source()
-        self._code = python_code
-        # TODO: globals needs to be recorded
-        globals = {}
-
-        cls = type(self)
-        cls.forward = _forward_from_src(self._code, globals)
-
-        return python_code
 
     def _generate_forward(self):
         body, free_variables = self.graph.python_code(root_module='self')

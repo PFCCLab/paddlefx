@@ -17,9 +17,6 @@ logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
     print("my_compiler() called with FX graph:")
     gl.graph.print_tabular()
-
-    print(gl._code)
-    # [print(x) for x in dis.get_instructions(gl.forward)]
     return gl.forward
 
     # # dummy_print

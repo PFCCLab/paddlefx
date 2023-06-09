@@ -70,7 +70,6 @@ def _compile(
     f_code = frame.f_code
 
     def transform(instructions, code_options):
-        # tracer
         tracer = InstructionTranslator(
             instructions=instructions,
             frame=frame,
