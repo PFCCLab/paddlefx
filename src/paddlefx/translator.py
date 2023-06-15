@@ -308,7 +308,7 @@ class InstructionTranslatorBase:
         args: list[VariableBase],
         kwargs: dict[str, VariableBase],
     ):
-        assert isinstance(fn, CallableVariable | ObjectVariable)
+        assert isinstance(fn, (CallableVariable, ObjectVariable))
         assert isinstance(args, list)
         assert isinstance(kwargs, dict)
         assert all(
