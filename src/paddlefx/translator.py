@@ -401,7 +401,7 @@ class InstructionTranslatorBase:
     def CALL_METHOD(self, inst: Instruction):
         args = self.popn(inst.argval)
         fn = self.pop()
-        assert isinstance(fn, CallableVariable | ObjectVariable)
+        assert isinstance(fn, (CallableVariable, ObjectVariable))
         self.call_function(fn, args, {})
 
         # if isinstance(fn, Attribute):
