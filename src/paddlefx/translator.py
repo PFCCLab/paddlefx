@@ -403,6 +403,7 @@ class InstructionTranslatorBase:
         fn = self.pop()
         assert isinstance(fn, CallableVariable | ObjectVariable)
         self.call_function(fn, args, {})
+
         # if isinstance(fn, Attribute):
         #     fn_name = repr(fn)
         #     if fn_name.startswith("self"):
