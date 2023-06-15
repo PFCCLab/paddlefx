@@ -345,7 +345,6 @@ class InstructionTranslatorBase:
         # else:
         #     raise NotImplementedError(f"call function {fn} is not supported")
 
-
     def LOAD_GLOBAL(self, inst: Instruction):
         name = inst.argval
         if name in self.symbolic_globals:
