@@ -188,6 +188,6 @@ static PyMethodDef _methods[] = {
 
 static struct PyModuleDef _module = {
     PyModuleDef_HEAD_INIT, "myinterpreter",
-    "Module to demostrate a native interpreter", -1, _methods};
+    "Module to demonstrate a native interpreter", -1, _methods};
 
 PyMODINIT_FUNC PyInit_myinterpreter(void) { return PyModule_Create(&_module); }
