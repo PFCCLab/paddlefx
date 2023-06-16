@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 import dis
-import inspect
+import functools
+import logging
 import types
 
 from typing import Callable
@@ -11,7 +12,8 @@ import paddle
 import paddle.nn
 
 from ._eval_frame import set_eval_frame
-from .translator import InstructionTranslator, convert_instruction
+from .bytecode_transformation import transform_code_object
+from .translator import InstructionTranslator
 
 
 @dataclasses.dataclass
@@ -32,46 +34,66 @@ class DynamoContext:
         set_eval_frame(self.old_callback)
 
     def __call__(self, fn):
+        @functools.wraps(fn)
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
-            result = fn(*args, **kwargs)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                set_eval_frame(old_callback)
 
-            set_eval_frame(old_callback)
+            # debug friendly
+            # result = fn(*args, **kwargs)
+            # set_eval_frame(old_callback)
+            # return result
 
-            return result
+        # compiled fn
+        _fn.fn = fn
 
         return _fn
+
+
+class DisableContext(DynamoContext):
+    def __init__(self):
+        super().__init__(callback=None)
+
+
+def disable(fn=None):
+    return DisableContext()(fn)
 
 
 def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
-):
-    # TODO(zrr1999): This part can be removed when running the converted bytecode in the future.
-    paddle_modules = [
-        "paddle.nn",
-        "paddle.fluid",
-        "paddle.tensor",
-        # TODO(zrr1999): add more modules
-    ]
-    module = inspect.getmodule(frame)
-    if module is None:
-        raise RuntimeError('Cannot find module for frame')
-    package_name = module.__name__
+) -> GuardedCode:
+    f_code = frame.f_code
 
-    code = frame.f_code
-    for paddle_module in paddle_modules:
-        if package_name.startswith(paddle_module):
-            return GuardedCode(code)
-    instructions = list(map(convert_instruction, dis.get_instructions(code)))
+    def transform(instructions, code_options):
+        tracer = InstructionTranslator(
+            instructions=instructions,
+            frame=frame,
+            code_options=code_options,
+            compiler_fn=compiler_fn,
+        )
+        tracer.run()
 
-    tracer = InstructionTranslator(instructions, frame, compiler_fn)
-    tracer.run()
+        instructions[:] = tracer.output.output_instructions
 
-    # NOTE: just return the raw code from catched frame
-    # TODO: support cache
-    g = GuardedCode(code)
+    out_code = transform_code_object(f_code, transform)
+
+    logging.debug(f"\nraw_code:")
+    [logging.debug(x) for x in list(dis.get_instructions(f_code))]
+    logging.debug(f"")
+
+    logging.debug(f"\ntransformed_code:")
+    [logging.debug(x) for x in list(dis.get_instructions(out_code))]
+    logging.debug(f"")
+
+    # debug, no trace
+    # return None
+
+    g = GuardedCode(out_code)
     return g
 
 
@@ -93,6 +115,7 @@ def has_tensor_in_frame(frame: types.FrameType) -> bool:
 def convert_frame_assert(compiler_fn: Callable):
     def _convert_frame_assert(frame: types.FrameType):
         if not has_tensor_in_frame(frame):
+            logging.debug(f"frame skipped: {frame.f_code.co_name}")
             return None
 
         return _compile(frame, compiler_fn)
