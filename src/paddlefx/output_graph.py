@@ -8,6 +8,7 @@ import paddle
 import paddle.nn
 
 from .bytecode_transformation import Instruction, unique_id
+from .codegen import PyCodegen
 from .graph_layer import GraphLayer
 from .symbolic_trace import Tracer
 from .utils import format_bytecode
@@ -57,7 +58,6 @@ class OutputGraph(Tracer):
         return compiled_fn
 
     def compile_and_call_fx_graph(self, tx, rv, root):
-        from .codegen import PyCodegen
         from .eval_frame import disable
 
         self.create_node("output", "output", tuple(x for x in rv), {})
