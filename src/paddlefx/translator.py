@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import operator
 import types
 
@@ -328,6 +329,8 @@ class InstructionTranslator(InstructionTranslatorBase):
     def step(self, inst: Instruction):
         if not hasattr(self, inst.opname):
             raise NotImplementedError(f"missing: {inst.opname}")
+
+        logging.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
         getattr(self, inst.opname)(inst)
 
     def run(self):

@@ -13,7 +13,7 @@ import paddlefx
 
 logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 
-# TODO: support grpah break fo `print`
+# TODO: support grpah break for `print`
 
 
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):

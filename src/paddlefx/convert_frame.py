@@ -9,7 +9,7 @@ from typing import Callable
 import paddle
 import paddle.nn
 
-from .bytecode_transformation import transform_code_object
+from .bytecode_transformation import Instruction, transform_code_object
 from .translator import InstructionTranslator
 from .utils import format_bytecode
 
@@ -20,26 +20,32 @@ class GuardedCode:
     # check_fn: GuardFn
 
 
-def has_tensor_in_frame(frame: types.FrameType) -> bool:
-    # NOTE: skip paddle internal code
+def skip_frame(frame: types.FrameType) -> bool:
+    # skip paddle internal code
     if frame.f_code.co_filename.endswith('paddle/fluid/dygraph/math_op_patch.py'):
-        return False
-    if frame.f_code.co_name == 'in_dygraph_mode':
-        return False
+        return True
+    elif frame.f_code.co_filename.endswith('paddle/fluid/framework.py'):
+        return True
+    elif frame.f_code.co_filename.endswith('paddle/tensor/to_string.py'):
+        return True
+    elif frame.f_code.co_filename.endswith('fluid/dygraph/varbase_patch_methods.py'):
+        return True
+    elif frame.f_code.co_name == 'in_dygraph_mode':
+        return True
 
     for v in frame.f_locals.values():
-        # TODO: supprt containers
+        # TODO: supprt containers & more
         if isinstance(v, paddle.Tensor):
-            return True
+            return False
 
-    return False
+    return True
 
 
 def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ) -> GuardedCode:
-    def transform(instructions, code_options):
+    def transform(instructions: list[Instruction], code_options: dict):
         tracer = InstructionTranslator(
             instructions=instructions,
             frame=frame,
@@ -49,6 +55,7 @@ def _compile(
         tracer.run()
 
         instructions[:] = tracer.output.output_instructions
+        code_options.update(tracer.output.code_options)
 
     code = frame.f_code
     out_code = transform_code_object(code, transform)
@@ -69,7 +76,7 @@ def _compile(
 
 def convert_frame(compiler_fn: callable):
     def _fn(frame: types.FrameType):
-        if not has_tensor_in_frame(frame):
+        if skip_frame(frame):
             return None
 
         return _compile(frame, compiler_fn)

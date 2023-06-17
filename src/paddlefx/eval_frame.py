@@ -24,10 +24,14 @@ class DynamoContext:
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
-            try:
-                return fn(*args, **kwargs)
-            finally:
-                set_eval_frame(old_callback)
+            # try:
+            #     return fn(*args, **kwargs)
+            # finally:
+            #     set_eval_frame(old_callback)
+
+            result = fn(*args, **kwargs)
+            set_eval_frame(old_callback)
+            return result
 
         _fn.fn = fn
 
@@ -45,11 +49,11 @@ def disable(fn=None):
 
 def optimize(backend: callable):
     def _fn(compiler_fn):
-        inner_convert = convert_frame(compiler_fn)
+        _convert_frame = convert_frame(compiler_fn)
 
         def __fn(frame: types.FrameType):
             try:
-                result = inner_convert(frame)
+                result = _convert_frame(frame)
                 return result
             except NotImplementedError as e:
                 logging.warning(f"NotImplementedError: {e}")
