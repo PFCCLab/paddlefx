@@ -24,14 +24,10 @@ class DynamoContext:
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
-            # try:
-            #     return fn(*args, **kwargs)
-            # finally:
-            #     set_eval_frame(old_callback)
-
-            result = fn(*args, **kwargs)
-            set_eval_frame(old_callback)
-            return result
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                set_eval_frame(old_callback)
 
         _fn.fn = fn
 
