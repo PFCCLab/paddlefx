@@ -3,6 +3,7 @@ from __future__ import annotations
 from .eval_frame import optimize  # noqa
 from .graph import Graph  # noqa
 from .graph_layer import GraphLayer  # noqa
+from .interpreter import Interpreter  # noqa
 from .node import Node  # noqa
 from .symbolic_trace import Tracer, symbolic_trace  # noqa
 
