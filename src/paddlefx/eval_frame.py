@@ -29,7 +29,7 @@ class DynamoContext:
             finally:
                 set_eval_frame(old_callback)
 
-        _fn.raw_fn = fn
+        _fn.fn = fn
 
         return _fn
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import dis
 import logging
 import types
 
@@ -12,6 +11,7 @@ import paddle.nn
 
 from .bytecode_transformation import transform_code_object
 from .translator import InstructionTranslator
+from .utils import format_bytecode
 
 
 @dataclasses.dataclass
@@ -39,8 +39,6 @@ def _compile(
     frame: types.FrameType,
     compiler_fn: Callable,
 ) -> GuardedCode:
-    f_code = frame.f_code
-
     def transform(instructions, code_options):
         tracer = InstructionTranslator(
             instructions=instructions,
@@ -52,13 +50,15 @@ def _compile(
 
         instructions[:] = tracer.output.output_instructions
 
-    out_code = transform_code_object(f_code, transform)
+    code = frame.f_code
+    out_code = transform_code_object(code, transform)
 
-    logging.debug(f"\nraw_code:")
-    [logging.debug(x) for x in list(dis.get_instructions(f_code))]
-
-    logging.debug(f"\ntransformed_code:")
-    [logging.debug(x) for x in list(dis.get_instructions(out_code))]
+    logging.debug(
+        f"{format_bytecode('raw_code', code.co_name, code.co_filename, code.co_firstlineno, code)}"
+    )
+    logging.debug(
+        f"{format_bytecode('transformed_code', code.co_name, code.co_filename, code.co_firstlineno, out_code)}"
+    )
 
     # debug, no trace
     # return None

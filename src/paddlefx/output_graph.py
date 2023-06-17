@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dis
 import logging
 
 from typing import TYPE_CHECKING, Any
@@ -11,6 +10,7 @@ import paddle.nn
 from .bytecode_transformation import Instruction, unique_id
 from .graph_layer import GraphLayer
 from .symbolic_trace import Tracer
+from .utils import format_bytecode
 
 if TYPE_CHECKING:
     from .translator import InstructionTranslatorBase
@@ -68,18 +68,13 @@ class OutputGraph(Tracer):
         compiled_fn = disable(compiled_fn)
 
         name = unique_id("__compiled_fn")
+        self.install_global(name, compiled_fn)
 
         logging.debug(f"{name} - gl.src:\n{gl.src}")
-
-        logging.debug(f"{name}:")
-        [logging.debug(x) for x in list(dis.get_instructions(compiled_fn))]
-        logging.debug(f"")
-
-        logging.debug(f"{name}.raw_fn:")
-        [logging.debug(x) for x in list(dis.get_instructions(compiled_fn.raw_fn))]
-        logging.debug(f"")
-
-        self.install_global(name, compiled_fn)
+        _code = compiled_fn.fn.__code__
+        logging.debug(
+            f"{format_bytecode(f'{name}.fn', _code.co_name, _code.co_filename, _code.co_firstlineno, _code)}"
+        )
 
         cg = PyCodegen(tx)
         cg.make_call_generated_code(name)
