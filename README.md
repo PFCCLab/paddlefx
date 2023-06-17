@@ -4,11 +4,11 @@ paddlefx is an experimental project for building [PaddlePaddle](https://github.c
 
 ## Community activities
 
-- Tracking issue for PaddleSOT project：https://github.com/PaddlePaddle/PaddleSOT/issues/133
-- online tech discussion meeting：https://github.com/PaddlePaddle/PaddleSOT/discussions/149
+- Tracking issue for PaddleSOT project: https://github.com/PaddlePaddle/PaddleSOT/issues/133
+- Online tech discussion meeting: https://github.com/PaddlePaddle/PaddleSOT/discussions/149
 - China open source software innovation challenge: https://github.com/PaddlePaddle/Paddle/issues/53172#paddlepaddle01
 
-if you are interested in these activities, please send a email to ext_paddle_oss@baidu.com, we'wll invite you into wechat group.
+If you are interested in these activities, please send a email to ext_paddle_oss@baidu.com, we'll invite you into wechat group.
 
 ## Quick Start
 
