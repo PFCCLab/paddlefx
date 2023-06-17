@@ -4,7 +4,7 @@ import dis
 
 from typing import TYPE_CHECKING
 
-from .translator import Instruction
+from .bytecode_transformation import Instruction
 
 if TYPE_CHECKING:
     from .translator import Instruction, InstructionTranslatorBase
