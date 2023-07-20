@@ -4,7 +4,10 @@ import functools
 import logging
 import types
 
-from ._eval_frame import set_eval_frame
+from typing import Callable
+
+from paddle.fluid.core import set_eval_frame  # type: ignore
+
 from .convert_frame import convert_frame
 
 
@@ -43,7 +46,7 @@ def disable(fn=None):
     return DisableContext()(fn)
 
 
-def optimize(backend: callable):
+def optimize(backend: Callable):
     def _fn(compiler_fn):
         _convert_frame = convert_frame(compiler_fn)
 

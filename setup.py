@@ -9,7 +9,7 @@ import warnings
 
 import setuptools_scm
 
-from setuptools import Extension, find_packages, setup
+from setuptools import find_packages, setup
 from setuptools.command.build_ext import build_ext
 
 HERE = pathlib.Path(__file__).parent.resolve()
@@ -90,8 +90,6 @@ class CMakeBuildExt(build_ext):
 
 
 if __name__ == '__main__':
-    ext_modules = [Extension('paddlefx._eval_frame', [])]
-    cmdclass = {'build_ext': CMakeBuildExt}
     # TODO: add more info
     setup(
         name='paddlefx',
@@ -106,6 +104,4 @@ if __name__ == '__main__':
         package_data={
             'paddlefx': ['py.typed', '*.pyi'],
         },
-        ext_modules=ext_modules,
-        cmdclass=cmdclass,
     )
