@@ -6,7 +6,6 @@ from .graph_layer import GraphLayer  # noqa
 from .graph_viewer import FxGraphViewer  # noqa
 from .interpreter import Interpreter  # noqa
 from .node import Node  # noqa
-from .proxy import Proxy  # noqa
 from .symbolic_trace import Tracer, symbolic_trace  # noqa
 
 try:
