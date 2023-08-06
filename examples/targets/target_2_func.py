@@ -10,8 +10,10 @@ import paddle
 import paddle.nn
 
 import paddlefx
+import paddlefx.utils
 
-logging.basicConfig(level=logging.DEBUG, format="%(message)s")
+# logging.basicConfig(level=logging.DEBUG, format="%(message)s")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
@@ -20,15 +22,19 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
     return gl.forward
 
 
-@paddlefx.optimize(my_compiler)
-def add(x, y):
+def func(x, y):
     z = x + y
     return z
 
 
+@paddlefx.optimize(my_compiler)
+def add(a, b):
+    d = func(a, b)
+    return d
+
+
 in_a = paddle.rand([1])
 in_b = paddle.rand([1])
-
 res = add(in_a, in_b)
 
 print("in_a = ", in_a)

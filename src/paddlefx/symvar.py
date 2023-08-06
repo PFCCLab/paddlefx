@@ -53,8 +53,8 @@ class SymVar:
         if var.__module__.startswith("paddle"):
             # TODO: support multiple ouputs and containers
             ot = args[0].vtype
-            graph.call_function(var, args, kwargs, ot)
-            return SymVar(vtype=ot)
+            output = graph.call_function(var, args, kwargs, ot)
+            return SymVar(vtype=ot, node=output)
         elif inspect.isbuiltin(var):
             if var is print:
                 raise NotImplementedError("print() is not supported")
