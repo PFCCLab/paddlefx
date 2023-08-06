@@ -3,7 +3,7 @@ from __future__ import annotations
 import builtins
 import keyword
 
-from typing import Any
+from typing import Any, Callable
 
 import paddle
 import paddle.nn
@@ -205,6 +205,21 @@ class Graph:
             'call_module', target, args, kwargs, name=target.replace('.', '_')
         )
 
+    def call_function(
+        self,
+        target: Callable[..., Any],
+        args: tuple[Any, ...] = (),
+        kwargs: dict[str, Any] = {},
+        return_type: Any | None = None,
+    ) -> Node:
+        return self.create_node(
+            op='call_function',
+            target=target,
+            args=args,
+            kwargs=kwargs,
+            # return_type=return_type,
+        )
+
     def erase_node(self, to_erase: Node) -> None:
         if len(to_erase.users) > 0:
             raise RuntimeError(
@@ -243,6 +258,7 @@ class Graph:
         free_vars = []
         body = []
         for node in self.nodes:
+            node: Node
             if node.op == 'placeholder':
                 free_vars.append(node.target)
                 if node.target != node.name:
