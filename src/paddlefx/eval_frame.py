@@ -4,11 +4,13 @@ import functools
 import logging
 import types
 
+from typing import Callable
+
 from ._eval_frame import set_eval_frame
 from .convert_frame import convert_frame
 
 
-class DynamoContext:
+class BaseContext:
     def __init__(self, callback):
         self.callback = callback
 
@@ -24,17 +26,16 @@ class DynamoContext:
         def _fn(*args, **kwargs):
             old_callback = set_eval_frame(self.callback)
 
-            try:
-                return fn(*args, **kwargs)
-            finally:
-                set_eval_frame(old_callback)
+            result = fn(*args, **kwargs)
+            set_eval_frame(old_callback)
+            return result
 
-        _fn.fn = fn
+        _fn.wrapped_fn = fn  # type: ignore
 
         return _fn
 
 
-class DisableContext(DynamoContext):
+class DisableContext(BaseContext):
     def __init__(self):
         super().__init__(callback=None)
 
@@ -43,20 +44,18 @@ def disable(fn=None):
     return DisableContext()(fn)
 
 
-def optimize(backend: callable):
-    def _fn(compiler_fn):
-        _convert_frame = convert_frame(compiler_fn)
-
+def optimize(backend: Callable):
+    def _fn(backend: Callable):
         def __fn(frame: types.FrameType):
             try:
-                result = _convert_frame(frame)
+                result = convert_frame(frame, backend)
                 return result
             except NotImplementedError as e:
-                logging.warning(f"NotImplementedError: {e}")
+                logging.debug(f"!! NotImplementedError: {e}")
             except Exception:
                 raise
             return None
 
         return __fn
 
-    return DynamoContext(_fn(backend))
+    return BaseContext(_fn(backend))
