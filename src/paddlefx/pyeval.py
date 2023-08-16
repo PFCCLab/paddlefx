@@ -424,6 +424,8 @@ class PyEvalBase:
         self.push(self.symbolic_locals[name])
         if name.startswith("___stack"):
             self.symbolic_locals.pop(name)
+        if name in ['self']:
+            self.symbolic_locals.pop(name)
 
     def STORE_FAST(self, inst: Instruction):
         self.symbolic_locals[inst.argval] = self.pop()
@@ -596,9 +598,11 @@ class PyEval(PyEvalBase):
         # TODO: rm hardcode
         # create inputs
         for var in self.symbolic_locals.values():
-            if isinstance(
-                var.source, LocalSource
-            ) and not var.source.local_name.startswith("___stack"):
+            if (
+                isinstance(var.source, LocalSource)
+                and not var.source.local_name.startswith("___stack")
+                and var.source.local_name not in ['self']
+            ):
                 self.output.graph.placeholder(var.source.local_name)
 
     def create_call_resume_at(self, inst: Instruction | None) -> list[Instruction]:
