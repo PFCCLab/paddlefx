@@ -424,8 +424,8 @@ class PyEvalBase:
         self.push(self.symbolic_locals[name])
         if name.startswith("___stack"):
             self.symbolic_locals.pop(name)
-        if name in ['self']:
-            self.symbolic_locals.pop(name)
+        # if name in ['self']:
+        #     self.symbolic_locals.pop(name)
 
     def STORE_FAST(self, inst: Instruction):
         self.symbolic_locals[inst.argval] = self.pop()

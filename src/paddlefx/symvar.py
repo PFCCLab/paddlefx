@@ -52,9 +52,19 @@ class SymVar:
 
         if var.__module__.startswith("paddle"):
             # TODO: support multiple ouputs and containers
-            ot = args[0].vtype
-            output = graph.call_function(var, args, kwargs, ot)
-            return SymVar(vtype=ot, node=output)
+            if 'nn.layer' in var.__module__:
+                ot = args[0].vtype
+                target = ''
+                for name, layer in tx.f_locals['self']._sub_layers.items():
+                    if var is layer:
+                        target = name
+                        break
+                output = graph.call_module(target, args, kwargs)
+                return SymVar(vtype=ot, node=output)
+            else:
+                ot = args[0].vtype
+                output = graph.call_function(var, args, kwargs, ot)
+                return SymVar(vtype=ot, node=output)
         elif inspect.isbuiltin(var):
             if var is print:
                 raise NotImplementedError("print() is not supported")
