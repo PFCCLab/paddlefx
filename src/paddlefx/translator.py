@@ -12,14 +12,16 @@ import paddle.nn
 from .bytecode_transformation import Instruction, create_instruction
 from .output_graph import OutputGraph
 from .proxy import Attribute, Proxy
+from .variable_stack import VariableStack
+from .variables.base import VariableBase
 
 
 def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        args = self.popn(2)
+        args = self.stack.pop_n(2)
         res = self.output.create_node('call_function', op, args, {})
-        self.push(res)
+        self.stack.push(res)
 
     return _binary
 
@@ -27,8 +29,8 @@ def _binary_constructor(op_name: str):
 def _unary_constructor(op_name: str):
     def _unary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        res = self.output.create_node('call_function', op, self.pop(), {})
-        self.push(res)
+        res = self.output.create_node('call_function', op, self.stack.pop(), {})
+        self.stack.push(res)
 
     return _unary
 
@@ -91,25 +93,16 @@ class InstructionTranslatorBase:
         self.frame: types.FrameType = frame
         self.output: OutputGraph = output
 
-        self.f_locals = {}
-        self.stack = []
+        self.f_globals: dict[str, VariableBase] = {}
+        self.f_locals: dict[str, VariableBase] = {}
+        self.f_builtins: dict[str, VariableBase] = {}
+        # TODO(zrr1999): self.stack should be a stack of VariableBase
+        self.stack: VariableStack[VariableBase | Any] = VariableStack()
         for k, _ in frame.f_locals.items():
             self.f_locals[k] = self.output._proxy_placeholder(k)
 
-    def pop(self):
-        return self.stack.pop()
-
-    def push(self, item):
-        return self.stack.append(item)
-
-    def popn(self, n: int, reverse=True):
-        assert n >= 0
-        if not n:
-            return []
-        if reverse:
-            return list(reversed([self.pop() for _ in range(n)]))
-        else:
-            return [self.pop() for _ in range(n)]
+        for k, v in frame.f_globals.items():
+            self.f_globals[k] = VariableBase(v)
 
     def call_function(self, fn, args, kwargs):
         # TODO: implement InlineTranslator
@@ -124,15 +117,15 @@ class InstructionTranslatorBase:
                 break
 
         if isinstance(fn, Attribute):
-            self.push(fn(*args, **kwargs))
+            self.stack.push(fn(*args, **kwargs))
         elif fn is isinstance:
             res = self.output.create_node('call_function', fn, args, kwargs)
-            self.push(res)
+            self.stack.push(res)
         elif fn.__module__.startswith("paddle"):
             if hasattr(fn, "forward"):
                 fn = fn.forward
             res = self.output.create_node('call_function', fn, args, kwargs)
-            self.push(res)
+            self.stack.push(res)
         elif is_custom_call:
             raise NotImplementedError(f"custom_call is not supported")
         else:
@@ -140,10 +133,10 @@ class InstructionTranslatorBase:
 
     def LOAD_GLOBAL(self, inst: Instruction):
         name = inst.argval
-        if name in self.frame.f_globals:
-            self.push(self.frame.f_globals[name])
-        elif name in self.frame.f_builtins:
-            self.push(self.frame.f_builtins[name])
+        if name in self.f_globals:
+            self.stack.push(self.f_globals[name].value)
+        elif name in self.f_builtins:
+            self.stack.push(self.f_builtins[name].value)
         else:
             raise Exception(f"name '{name}' is not found")
 
@@ -155,101 +148,101 @@ class InstructionTranslatorBase:
 
     def LOAD_CONST(self, inst: Instruction):
         value = inst.argval
-        self.push(value)
+        self.stack.push(value)
 
     def LOAD_ATTR(self, inst: Instruction):
-        obj = self.pop()
+        obj = self.stack.pop()
         if isinstance(obj, Proxy) and obj.node.name.startswith("self"):
             res = self.output.create_node('get_param', inst.argval)
-            self.push(res)
+            self.stack.push(res)
         elif hasattr(obj, inst.argval):
             value = getattr(obj, inst.argval)
-            self.push(value)
+            self.stack.push(value)
         else:
-            self.push(None)
+            self.stack.push(None)
 
     def LOAD_METHOD(self, inst: Instruction):
-        target = self.pop()
+        target = self.stack.pop()
         fn = getattr(target, inst.argval)
-        self.push(fn)
+        self.stack.push(fn)
 
     def CALL_METHOD(self, inst: Instruction):
-        args = self.popn(inst.argval)
-        fn = self.pop()
+        args = self.stack.pop_n(inst.argval)
+        fn = self.stack.pop()
         if isinstance(fn, Attribute):
             fn_name = repr(fn)
             if fn_name.startswith("self"):
                 res = self.output.create_node('call_module', fn.attr, args, {})
             else:
                 res = fn(*args)
-            self.push(res)
+            self.stack.push(res)
         else:
             # TODO(zrr1999) other class should be handled separately.
             if hasattr(fn, "forward"):
                 fn = fn.forward
             if fn is not None:
                 res = self.call_function(fn, args, {})
-                self.push(res)
+                self.stack.push(res)
             else:
-                self.push(None)
+                self.stack.push(None)
 
     def CALL_FUNCTION(self, inst: Instruction):
-        args = self.popn(inst.argval)
-        fn = self.pop()
+        args = self.stack.pop_n(inst.argval)
+        fn = self.stack.pop()
         self.call_function(fn, args, {})
 
     def CALL_FUNCTION_KW(self, inst: Instruction):
-        argnames = self.pop()
-        args = self.popn(inst.argval)
-        fn = self.pop()
+        argnames = self.stack.pop()
+        args = self.stack.pop_n(inst.argval)
+        fn = self.stack.pop()
         args, kwargs = args[: -len(argnames)], args[-len(argnames) :]
         kwargs = dict(zip(argnames, kwargs))
         self.call_function(fn, args, kwargs)
 
     def BUILD_TUPLE(self, inst):
-        items = self.popn(inst.argval)
-        self.push(tuple(items))
+        items = self.stack.pop_n(inst.argval)
+        self.stack.push(tuple(items))
 
     def BUILD_LIST(self, inst):
-        items = self.popn(inst.argval)
-        self.push(items)
+        items = self.stack.pop_n(inst.argval)
+        self.stack.push(items)
 
     def BUILD_MAP(self, inst):
-        items = self.popn(inst.argval * 2)
+        items = self.stack.pop_n(inst.argval * 2)
         result = dict()
         for k, v in zip(items[::2], items[1::2]):
             result[k] = v
         assert len(result) == len(items) / 2
-        self.push(result)
+        self.stack.push(result)
 
     def BUILD_CONST_KEY_MAP(self, inst):
-        keys = self.pop()
-        values = self.popn(inst.argval)
-        self.push(dict(zip(keys, values)))
+        keys = self.stack.pop()
+        values = self.stack.pop_n(inst.argval)
+        self.stack.push(dict(zip(keys, values)))
 
     def BINARY_SUBSCR(self, inst):
-        idx = self.pop()
-        root = self.pop()
+        idx = self.stack.pop()
+        root = self.stack.pop()
         if isinstance(root, Proxy):
             res = root[idx]
         else:
             res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
-        self.push(res)
+        self.stack.push(res)
 
     def STORE_SUBSCR(self, inst):
-        value = self.pop()
-        idx = self.pop()
-        root = self.pop()
+        value = self.stack.pop()
+        idx = self.stack.pop()
+        root = self.stack.pop()
         self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
 
     def POP_TOP(self, inst: Instruction):
-        value = self.pop()
+        value = self.stack.pop()
 
     def STORE_FAST(self, inst: Instruction):
-        self.f_locals[inst.argval] = self.pop()
+        self.f_locals[inst.argval] = self.stack.pop()
 
     def LOAD_FAST(self, inst: Instruction):
-        self.push(self.f_locals[inst.argval])
+        self.stack.push(self.f_locals[inst.argval])
 
     def RETURN_VALUE(self, inst: Instruction):
         self.output.compile_subgraph(self)
@@ -271,30 +264,30 @@ class InstructionTranslatorBase:
             'is not': 'is_not',
         }
         op = getattr(operator, op_mapper[inst.argval])
-        args = self.popn(2)
+        args = self.stack.pop_n(2)
         res = self.output.create_node('call_function', op, args, {})
-        self.push(res)
+        self.stack.push(res)
 
     # note: python3.9+
     def IS_OP(self, inst: Instruction):
         invert = inst.argval
-        args = self.popn(2)
+        args = self.stack.pop_n(2)
         if invert:
             op = operator.is_
         else:
             op = operator.is_not
         res = self.output.create_node('call_function', op, args, {})
-        self.push(res)
+        self.stack.push(res)
 
     def CONTAINS_OP(self, inst: Instruction):
         invert = inst.argval
-        args = self.popn(2)
+        args = self.stack.pop_n(2)
         if invert:
             op = operator.contains
         else:
             op = lambda a, b: b not in a
         res = self.output.create_node('call_function', op, args, {})
-        self.push(res)
+        self.stack.push(res)
 
 
 for mapper, constructor in zip(OP_MAPPER, CONSTRUCTOR):
