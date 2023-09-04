@@ -238,7 +238,11 @@ class PyEvalBase:
     def ROT_FOUR(self, instr: Instruction):
         self._rot_top_n(4)
 
-    def _rot_top_n(self, n):
+    def ROT_N(self, instr: Instruction):
+        assert instr.argval is not None
+        self._rot_top_n(instr.argval)
+
+    def _rot_top_n(self, n: int):
         # a1 a2 a3 ... an  <- TOS
         # the stack changes to
         # an a1 a2 a3 an-1 <- TOS
