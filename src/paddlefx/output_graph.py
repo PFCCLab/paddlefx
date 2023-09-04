@@ -16,7 +16,8 @@ from .source import LocalSource
 from .utils import format_instruction, log_code, log_instructions
 
 if TYPE_CHECKING:
-    from .pyeval import PyEval, PyEvalBase, SymVar
+    from .pyeval import PyEval, PyEvalBase
+    from .variables.base import VariableBase
 
 _output_graph_var_counter = itertools.count()
 
@@ -44,7 +45,7 @@ class OutputGraph:
         self.instructions.extend(insts)
         self.should_exit = True
 
-    def apply_compiler(self, tx: PyEvalBase, rv: list[SymVar], root):
+    def apply_compiler(self, tx: PyEvalBase, rv: list[VariableBase], root):
         from .eval_frame import disable
 
         self.graph.create_node(
@@ -74,11 +75,11 @@ class OutputGraph:
         )
         tx.prune_dead_locals()
 
-        stack_values = list(tx.stack)
+        stack_values = tx.stack.copy()
         restore_vars = []
-        val_to_names: OrderedDict[SymVar, list[str]] = OrderedDict()
+        val_to_names: OrderedDict[VariableBase, list[str]] = OrderedDict()
         if stack_values:
-            val_to_names[stack_values[-1]] = list()
+            val_to_names[stack_values.top] = list()
 
         for k, v in tx.symbolic_locals.items():
             if isinstance(v.source, LocalSource) and v.source.local_name == k:
@@ -88,7 +89,7 @@ class OutputGraph:
             val_to_names[v].append(k)
         for v in val_to_names.keys():
             restore_vars.extend(val_to_names[v])
-            stack_values.extend([v] * len(val_to_names[v]))
+            stack_values.push_n([v] * len(val_to_names[v]))
 
         graph_output_var = f"___graph_out_{next(_output_graph_var_counter)}"
         self.code_options["co_varnames"] += (graph_output_var,)

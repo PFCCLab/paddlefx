@@ -109,14 +109,24 @@ class VariableStack(Generic[StackDataT]):
     def copy(self):
         return VariableStack(self._data, validate_value_func=self.validate_value_func)
 
-    def push(self, val: StackDataT):
+    def push(self, var: StackDataT):
         """Pushes a variable onto the stack.
 
         Args:
             val: The variable to be pushed.
         """
-        self.validate_value_func(val)
-        self._data.append(val)
+        self.validate_value_func(var)
+        self._data.append(var)
+
+    def push_n(self, vars: list[StackDataT]):
+        """Pushes multiple variables onto the stack.
+
+        Args:
+            val: The variables to be pushed.
+        """
+        for var in vars:
+            self.validate_value_func(var)
+        self._data.extend(vars)
 
     def insert(self, index: int, val: StackDataT):
         """Inserts a variable onto the stack.
