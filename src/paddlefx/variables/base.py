@@ -1,41 +1,50 @@
 from __future__ import annotations
 
+import inspect
+import itertools
+import operator
 import types
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from ..proxy import Proxy
+from ..source import LocalSource, Source
 
-__all__ = []  # TODO: add __all__
+_sym_var_id_counter = itertools.count()
 
-
-def proxy_args_kwargs(
-    args: Sequence[VariableBase], kwargs: dict[str, VariableBase]
-) -> tuple[tuple[Proxy], dict[str, Proxy]]:
-    proxy_args = tuple(arg.as_proxy() for arg in args)
-    proxy_kwargs = {key: arg.as_proxy() for key, arg in kwargs.items()}
-    return proxy_args, proxy_kwargs
+if TYPE_CHECKING:
+    from ..pyeval import PyEvalBase
 
 
 class VariableBase:
-    def __init__(self, value=None):
-        self.value = value
+    def __init__(
+        self,
+        *,
+        var: Any = None,
+        vtype: Any = None,
+        tx: PyEvalBase | None = None,
+        source: Source | None = None,
+        node: Any = None,
+    ) -> None:
+        self.var = var
+        self.vtype = vtype if var is None else type(var)
+        self.tx = tx
+        self.source = source
+        self.node = node
 
-    def __str__(self):
-        return f"{self.__class__.__name__}()"
+        self.id = f"id_{next(_sym_var_id_counter)}"
 
-    def __repr__(self):
+    def __str__(self) -> str:
+        # TODO: just workaround, rm it later
+        if self.source is not None and isinstance(self.source, LocalSource):
+            return self.source.local_name
+        elif self.node is not None:
+            return self.node.name
+
+        return f"VariableBase({self.vtype}, {self.id})"
+
+    def __repr__(self) -> str:
         return self.__str__()
-
-    def as_proxy(self) -> Proxy:
-        raise NotImplementedError
-
-    def is_proxy(self) -> bool:
-        try:
-            self.as_proxy()
-            return True
-        except NotImplementedError:
-            return False
 
 
 class ConstantVariable(VariableBase):
@@ -58,6 +67,37 @@ class CallableVariable(VariableBase):
         else:
             name = self.fn.__name__
         return f"{self.__class__.__name__}({name})"
+
+    def call(self, tx: PyEvalBase, *args, **kwargs) -> Any:
+        # TODO: better org
+        assert isinstance(self.var, Callable)
+        var = self.var
+        graph = tx.output.graph
+
+        if var.__module__.startswith("paddle"):
+            # TODO: support multiple ouputs and containers
+            ot = args[0].vtype
+            output = graph.call_function(var, args, kwargs, ot)
+            return VariableBase(vtype=ot, node=output)
+        elif inspect.isbuiltin(var):
+            if var is print:
+                raise NotImplementedError("print() is not supported")
+            elif var is getattr:
+                object, name = args
+                attr = getattr(object.var, name.var)
+                return VariableBase(var=attr)
+            elif var in [operator.add, operator.sub]:
+                ot = args[0].vtype
+                output = graph.call_function(var, args, kwargs, ot)
+                return VariableBase(vtype=ot, node=output)
+            elif var in [operator.gt]:
+                ot = args[0].vtype
+                output = graph.call_function(var, args, kwargs, ot)
+                return VariableBase(vtype=ot, node=output)
+            else:
+                raise NotImplementedError(f"builtin {var} is not supported")
+
+        return tx.inline_call_function(self, args, kwargs)
 
     def call_function(
         self,
