@@ -193,16 +193,6 @@ class PyEvalBase:
         while not self.should_exit and not self.output.should_exit and not self.step():
             pass
 
-    def push(self, val: Any):
-        self.stack.push(val)
-
-    def pop(self) -> Any:
-        return self.stack.pop()
-
-    def popn(self, n: int) -> list[Any]:
-        assert n >= 0
-        return list(reversed([self.pop() for _ in range(n)]))
-
     def inline_call_function(
         self,
         fn: VariableBase,
