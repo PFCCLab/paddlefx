@@ -227,7 +227,7 @@ class PyEvalBase:
         )
 
     def POP_TOP(self, inst: Instruction):
-        self.pop()
+        self.stack.pop()
 
     # def ROT_TWO(self, inst: Instruction):
     # def ROT_THREE(self, inst: Instruction):
@@ -343,7 +343,7 @@ class PyEvalBase:
     def LOAD_ATTR(self, inst: Instruction):
         fn = getattr
 
-        owner = self.pop()
+        owner = self.stack.pop()
         self.call_function(
             CallableVariable(fn),
             [owner, VariableBase(var=inst.argval)],
@@ -384,11 +384,11 @@ class PyEvalBase:
         raise Exception("JUMP_ABSOLUTE error")
 
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
-        value = self.pop()
+        value = self.stack.pop()
         if isinstance(self, PyEval):
             self.stack.push(value)
             self.output.compile_subgraph(self)
-            self.pop()
+            self.stack.pop()
 
             if_next = self.create_call_resume_at(self.next_instruction)
             if_jump = self.create_call_resume_at(inst.target)
@@ -423,7 +423,7 @@ class PyEvalBase:
             self.symbolic_locals.pop(name)
 
     def STORE_FAST(self, inst: Instruction):
-        self.symbolic_locals[inst.argval] = self.pop()
+        self.symbolic_locals[inst.argval] = self.stack.pop()
 
     # def DELETE_FAST(self, inst: Instruction):
 
@@ -432,7 +432,8 @@ class PyEvalBase:
     @break_graph_if_unsupported(push=1)
     def CALL_FUNCTION(self, inst: Instruction):
         args = self.stack.pop_n(inst.argval)
-        fn = self.pop()
+        fn = self.stack.pop()
+        assert isinstance(fn, CallableVariable)
         self.call_function(fn, args, {})
 
     # def MAKE_FUNCTION(self, inst: Instruction):
@@ -444,9 +445,10 @@ class PyEvalBase:
 
     @break_graph_if_unsupported(push=1)
     def CALL_FUNCTION_KW(self, inst: Instruction):
-        argnames = self.pop()
+        argnames = self.stack.pop()
         args = self.stack.pop_n(inst.argval)
-        fn = self.pop()
+        fn = self.stack.pop()
+        assert isinstance(fn, CallableVariable)
         argnames = argnames.var
         args, kwargs_list = args[: -len(argnames)], args[-len(argnames) :]
         kwargs = dict(zip(argnames, kwargs_list))
@@ -552,7 +554,7 @@ class InlinePyEval(PyEvalBase):
         return tracer.symbolic_result
 
     def RETURN_VALUE(self, inst: Instruction):
-        self.symbolic_result = self.pop()
+        self.symbolic_result = self.stack.pop()
         self.should_exit = True
 
 
