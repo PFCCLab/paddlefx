@@ -6,12 +6,12 @@ import operator
 
 from typing import TYPE_CHECKING, Any, Callable
 
-from .source import LocalSource, Source
+from ..source import LocalSource, Source
 
 _sym_var_id_counter = itertools.count()
 
 if TYPE_CHECKING:
-    from .pyeval import PyEvalBase
+    from ..pyeval import PyEvalBase
 
 
 class SymVar:
