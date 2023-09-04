@@ -12,6 +12,7 @@ from .source import LocalSource
 if TYPE_CHECKING:
     from .graph import Node
     from .pyeval import PyEvalBase
+    from .variable_stack import VariableStack
     from .variables.base import VariableBase
 
 
@@ -121,7 +122,7 @@ class PyCodegen:
             self.append_output(self.create_load(node.target))
         self.extend_output(create_call_function(len(placeholders), False))
 
-    def call(self, vars: list[VariableBase]):
+    def call(self, vars: VariableStack[VariableBase]):
         for var in vars:
             self.call_one(var)
 
