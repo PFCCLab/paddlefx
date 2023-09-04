@@ -97,7 +97,7 @@ class OutputGraph:
         cg.call(stack_values)
 
         if not (root := tx.f_locals.get('self', None)):
-            root = paddle.nn.Layer()
+            root = paddle.nn.Layer()  # type: ignore
 
         output = []
         if tx.count_calls > 0 or len(cg.graph_outputs) != 0:

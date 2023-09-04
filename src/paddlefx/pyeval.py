@@ -229,11 +229,27 @@ class PyEvalBase:
     def POP_TOP(self, inst: Instruction):
         self.stack.pop()
 
-    # def ROT_TWO(self, inst: Instruction):
-    # def ROT_THREE(self, inst: Instruction):
+    def ROT_TWO(self, instr: Instruction):
+        self._rot_top_n(2)
+
+    def ROT_THREE(self, instr: Instruction):
+        self._rot_top_n(3)
+
+    def ROT_FOUR(self, instr: Instruction):
+        self._rot_top_n(4)
+
+    def _rot_top_n(self, n):
+        # a1 a2 a3 ... an  <- TOS
+        # the stack changes to
+        # an a1 a2 a3 an-1 <- TOS
+        assert (
+            len(self.stack) >= n
+        ), f"There are not enough elements on the stack. {n} is needed."
+        top = self.stack.pop()
+        self.stack.insert(n - 1, top)
+
     # def DUP_TOP(self, inst: Instruction):
     # def DUP_TOP_TWO(self, inst: Instruction):
-    # def ROT_FOUR(self, inst: Instruction):
 
     # def NOP(self, inst: Instruction):
     # def UNARY_POSITIVE(self, inst: Instruction):
