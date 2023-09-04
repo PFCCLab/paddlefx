@@ -214,7 +214,7 @@ class PyEvalBase:
         kwargs: dict[str, VariableBase],
         count_call=True,
     ):
-        var = fn.call(self, *args, **kwargs)
+        var = fn(self, *args, **kwargs)
         if count_call:
             self.count_calls += 1
 

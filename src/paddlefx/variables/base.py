@@ -68,7 +68,7 @@ class CallableVariable(VariableBase):
             name = self.fn.__name__
         return f"{self.__class__.__name__}({name})"
 
-    def call(self, tx: PyEvalBase, *args, **kwargs) -> Any:
+    def __call__(self, tx: PyEvalBase, *args, **kwargs) -> Any:
         # TODO: better org
         assert isinstance(self.var, Callable)
         var = self.var
