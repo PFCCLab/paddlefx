@@ -26,7 +26,7 @@ from .output_graph import OutputGraph
 from .source import LocalSource
 from .utils import format_instruction, log_code
 from .variable_stack import VariableStack
-from .variables.base import CallableVariable, VariableBase
+from .variables import CallableVariable, VariableBase
 
 if TYPE_CHECKING:
     # import opcode

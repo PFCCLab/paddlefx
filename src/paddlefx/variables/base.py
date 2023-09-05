@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import inspect
 import itertools
-import operator
-import types
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from ..proxy import Proxy
 from ..source import LocalSource, Source
@@ -48,92 +45,6 @@ class VariableBase:
         return self.__str__()
 
 
-class ConstantVariable(VariableBase):
-    def __init__(self, value):
-        super().__init__()
-        self.value = value
-
-    def __str__(self):
-        return str(self.value)
-
-
-class CallableVariable(VariableBase):
-    def __init__(self, fn):
-        super().__init__(var=fn, vtype=type(fn))
-        self.fn = fn
-
-    def __str__(self):
-        if self.fn is None:
-            name = "None"
-        else:
-            name = self.fn.__name__
-        return f"{self.__class__.__name__}({name})"
-
-    def __call__(self, tx: PyEvalBase, *args, **kwargs) -> Any:
-        # TODO: better org
-        assert isinstance(self.var, Callable)
-        var = self.var
-        graph = tx.output.graph
-
-        if var.__module__.startswith("paddle"):
-            # TODO: support multiple ouputs and containers
-            ot = args[0].vtype
-            output = graph.call_function(var, args, kwargs, ot)
-            return VariableBase(vtype=ot, node=output)
-        elif inspect.isbuiltin(var):
-            if var is print:
-                raise NotImplementedError("print() is not supported")
-            elif var is getattr:
-                object, name = args
-                attr = getattr(object.var, name.var)
-                return VariableBase(var=attr)
-            elif var in [operator.add, operator.sub]:
-                ot = args[0].vtype
-                output = graph.call_function(var, args, kwargs, ot)
-                return VariableBase(vtype=ot, node=output)
-            elif var in [operator.gt]:
-                ot = args[0].vtype
-                output = graph.call_function(var, args, kwargs, ot)
-                return VariableBase(vtype=ot, node=output)
-            else:
-                raise NotImplementedError(f"builtin {var} is not supported")
-
-        return tx.inline_call_function(self, args, kwargs)
-
-    def call_function(
-        self,
-        translator,
-        args: list[VariableBase],
-        kwargs: dict[str, VariableBase],
-    ) -> VariableBase:
-        assert isinstance(args, list)
-        assert isinstance(kwargs, dict)
-        fn_name = self.fn.__name__
-        handler = getattr(self, f"call_{fn_name}", None)
-        if handler:
-            return handler(translator, *args, **kwargs)
-        return ObjectVariable(
-            translator.output.create_node('call_function', self.fn, args, kwargs)
-        )
-        # raise NotImplementedError(f"{fn_name} is not implemented now")
-
-    def call_add(
-        self,
-        translator,
-        a: ObjectVariable,
-        b: ObjectVariable,
-    ) -> ObjectVariable:
-        return a.call_method(translator, "__add__", [a, b], {})
-
-    def call_iadd(
-        self,
-        translator,
-        a: ObjectVariable,
-        b: ObjectVariable,
-    ) -> ObjectVariable:
-        return a.call_method(translator, "__iadd__", [a, b], {})
-
-
 class ObjectVariable(VariableBase):
     def __init__(self, obj):
         super().__init__()
@@ -170,21 +81,21 @@ class ObjectVariable(VariableBase):
         )
 
 
-class BuiltinVariable(CallableVariable):
-    def call_print(
-        self,
-        translator,
-        *args: tuple[VariableBase],
-        **kwargs: dict[str, VariableBase],
-    ) -> ConstantVariable:
-        return ConstantVariable(None)
+# class BuiltinVariable(CallableVariable):
+#     def call_print(
+#         self,
+#         translator,
+#         *args: tuple[VariableBase],
+#         **kwargs: dict[str, VariableBase],
+#     ) -> ConstantVariable:
+#         return ConstantVariable(None)
 
-    def call_getattr(
-        self, translator, obj: ObjectVariable, name: str
-    ) -> ObjectVariable:
-        return ObjectVariable(
-            translator.output.create_node("call_method", "__getattr__", [obj, name])
-        )
+#     def call_getattr(
+#         self, translator, obj: ObjectVariable, name: str
+#     ) -> ObjectVariable:
+#         return ObjectVariable(
+#             translator.output.create_node("call_method", "__getattr__", [obj, name])
+#         )
 
 
 class LayerVariable(ObjectVariable):
@@ -216,25 +127,3 @@ class TensorVariable(ObjectVariable):
 
     def as_proxy(self) -> Proxy:
         return self.obj
-
-
-class PaddleVariable(CallableVariable):
-    pass
-
-
-# note: python module
-class ModuleVariable(ObjectVariable):
-    def __init__(self, module: types.ModuleType):
-        super().__init__(module)
-
-    def __str__(self):
-        return self.obj.__name__
-
-    def __getattr__(self, attr: str):
-        out_obj = getattr(self.obj, attr)
-        if isinstance(out_obj, types.ModuleType):
-            return ModuleVariable(out_obj)
-        elif isinstance(out_obj, types.FunctionType):
-            return CallableVariable(out_obj)
-        else:
-            return ObjectVariable(out_obj)
