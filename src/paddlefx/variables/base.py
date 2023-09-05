@@ -26,6 +26,7 @@ class VariableBase:
         source: Source | None = None,
         node: Any = None,
     ) -> None:
+        # TODO: remove var and vtype
         self.var = var
         self.vtype = vtype if var is None else type(var)
         self.tx = tx
@@ -58,7 +59,7 @@ class ConstantVariable(VariableBase):
 
 class CallableVariable(VariableBase):
     def __init__(self, fn):
-        super().__init__()
+        super().__init__(var=fn, vtype=type(fn))
         self.fn = fn
 
     def __str__(self):
