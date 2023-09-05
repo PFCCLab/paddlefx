@@ -11,7 +11,9 @@ from .source import LocalSource
 
 if TYPE_CHECKING:
     from .graph import Node
-    from .pyeval import PyEvalBase, SymVar
+    from .pyeval import PyEvalBase
+    from .variable_stack import VariableStack
+    from .variables.base import VariableBase
 
 
 @lru_cache(32)
@@ -28,7 +30,7 @@ class PyCodegen:
     def __init__(
         self,
         tx: PyEvalBase,
-        graph_output_var: str = None,
+        graph_output_var: str | None = None,
     ):
         self.tx = tx
         self.code_options = self.tx.output.code_options
@@ -120,11 +122,11 @@ class PyCodegen:
             self.append_output(self.create_load(node.target))
         self.extend_output(create_call_function(len(placeholders), False))
 
-    def call(self, vars: list[SymVar]):
+    def call(self, vars: VariableStack[VariableBase]):
         for var in vars:
             self.call_one(var)
 
-    def call_one(self, value: SymVar):
+    def call_one(self, value: VariableBase):
         """Generate code such that top-of-stack (TOS) is set to value."""
         output = self.instructions
         graph_outputs = self.graph_outputs

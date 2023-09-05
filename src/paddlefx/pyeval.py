@@ -24,8 +24,9 @@ from .bytecode_transformation import (
 from .codegen import PyCodegen
 from .output_graph import OutputGraph
 from .source import LocalSource
-from .symvar import SymVar
 from .utils import format_instruction, log_code
+from .variable_stack import VariableStack
+from .variables import CallableVariable, VariableBase
 
 if TYPE_CHECKING:
     # import opcode
@@ -59,9 +60,9 @@ def break_graph_if_unsupported(*, push: int):
             self.output.add_output_instructions([inst_copy])
 
             stack_effect = dis.stack_effect(inst.opcode, inst.arg)
-            self.popn(push - stack_effect)
+            self.stack.pop_n(push - stack_effect)
             for _ in range(push):
-                self.push(SymVar(var=SymVar(var=None)))
+                self.stack.push(VariableBase(var=VariableBase(var=None)))
 
             self.output.add_output_instructions(
                 self.create_call_resume_at(self.next_instruction)
@@ -75,7 +76,7 @@ def break_graph_if_unsupported(*, push: int):
 class PyEvalState(NamedTuple):
     # output: OutputGraphState
     symbolic_locals: OrderedDict[str, Any]
-    stack: list
+    stack: VariableStack[VariableBase]
     instruction_pointer: int
     current_instruction: Instruction | None
     next_instruction: Instruction | None
@@ -92,7 +93,7 @@ class PyEvalBase:
         f_locals: dict[str, Any],
         f_globals: dict[str, Any],
         f_builtins: dict[str, Any],
-        symbolic_locals: OrderedDict[str, SymVar],
+        symbolic_locals: OrderedDict[str, VariableBase],
         symbolic_globals: OrderedDict[str, Any],
         output: OutputGraph,
     ):
@@ -110,7 +111,7 @@ class PyEvalBase:
         # checkpoint
         self.checkpoint: tuple[Instruction, PyEvalState] | None = None
         self.symbolic_locals = symbolic_locals
-        self.stack = []
+        self.stack: VariableStack[VariableBase] = VariableStack()
         self.instruction_pointer = 0
         self.current_instruction: Instruction | None = None
         self.next_instruction: Instruction | None = None
@@ -192,19 +193,9 @@ class PyEvalBase:
         while not self.should_exit and not self.output.should_exit and not self.step():
             pass
 
-    def push(self, val: Any):
-        self.stack.append(val)
-
-    def pop(self) -> Any:
-        return self.stack.pop()
-
-    def popn(self, n: int) -> list[Any]:
-        assert n >= 0
-        return list(reversed([self.pop() for _ in range(n)]))
-
     def inline_call_function(
         self,
-        fn: SymVar,
+        fn: VariableBase,
         args,
         kwargs,
     ):
@@ -218,16 +209,16 @@ class PyEvalBase:
 
     def call_function(
         self,
-        fn: SymVar,
-        args: list[SymVar],
-        kwargs: dict[str, SymVar],
+        fn: CallableVariable,
+        args: list[VariableBase],
+        kwargs: dict[str, VariableBase],
         count_call=True,
     ):
-        var = fn.call(self, *args, **kwargs)
+        var = fn(self, *args, **kwargs)
         if count_call:
             self.count_calls += 1
 
-        self.push(var)
+        self.stack.push(var)
 
     def prune_dead_locals(self):
         reads = livevars_analysis(self.instructions, self.current_instruction)
@@ -236,13 +227,33 @@ class PyEvalBase:
         )
 
     def POP_TOP(self, inst: Instruction):
-        self.pop()
+        self.stack.pop()
 
-    # def ROT_TWO(self, inst: Instruction):
-    # def ROT_THREE(self, inst: Instruction):
+    def ROT_TWO(self, instr: Instruction):
+        self._rot_top_n(2)
+
+    def ROT_THREE(self, instr: Instruction):
+        self._rot_top_n(3)
+
+    def ROT_FOUR(self, instr: Instruction):
+        self._rot_top_n(4)
+
+    def ROT_N(self, instr: Instruction):
+        assert instr.argval is not None
+        self._rot_top_n(instr.argval)
+
+    def _rot_top_n(self, n: int):
+        # a1 a2 a3 ... an  <- TOS
+        # the stack changes to
+        # an a1 a2 a3 an-1 <- TOS
+        assert (
+            len(self.stack) >= n
+        ), f"There are not enough elements on the stack. {n} is needed."
+        top = self.stack.pop()
+        self.stack.insert(n - 1, top)
+
     # def DUP_TOP(self, inst: Instruction):
     # def DUP_TOP_TWO(self, inst: Instruction):
-    # def ROT_FOUR(self, inst: Instruction):
 
     # def NOP(self, inst: Instruction):
     # def UNARY_POSITIVE(self, inst: Instruction):
@@ -263,17 +274,17 @@ class PyEvalBase:
         fn = operator.add
 
         nargs = len(inspect.signature(fn).parameters)
-        args = self.popn(nargs)
+        args = self.stack.pop_n(nargs)
         assert type(args[0]) == type(args[1])
-        self.call_function(SymVar(var=fn), args, {})
+        self.call_function(CallableVariable(fn), args, {})
 
     def BINARY_SUBTRACT(self, inst: Instruction):
         fn = operator.sub
 
         nargs = len(inspect.signature(fn).parameters)
-        args = self.popn(nargs)
+        args = self.stack.pop_n(nargs)
         assert type(args[0]) == type(args[1])
-        self.call_function(SymVar(var=fn), args, {})
+        self.call_function(CallableVariable(fn), args, {})
 
     # def BINARY_SUBSCR(self, inst: Instruction):
     # def BINARY_FLOOR_DIVIDE(self, inst: Instruction):
@@ -338,13 +349,13 @@ class PyEvalBase:
     # def DELETE_GLOBAL(self, inst: Instruction):
 
     def LOAD_CONST(self, inst: Instruction):
-        self.push(SymVar(var=inst.argval))
+        self.stack.push(VariableBase(var=inst.argval))
 
     # def LOAD_NAME(self, inst: Instruction):
 
     def BUILD_TUPLE(self, inst: Instruction):
-        items = self.popn(inst.argval)
-        self.push(SymVar(var=tuple(items)))
+        items = self.stack.pop_n(inst.argval)
+        self.stack.push(VariableBase(var=tuple(items)))
 
     # def BUILD_LIST(self, inst: Instruction):
     # def BUILD_SET(self, inst: Instruction):
@@ -352,9 +363,12 @@ class PyEvalBase:
     def LOAD_ATTR(self, inst: Instruction):
         fn = getattr
 
-        owner = self.pop()
+        owner = self.stack.pop()
         self.call_function(
-            SymVar(var=fn), [owner, SymVar(var=inst.argval)], {}, count_call=False
+            CallableVariable(fn),
+            [owner, VariableBase(var=inst.argval)],
+            {},
+            count_call=False,
         )
 
     def COMPARE_OP(self, inst: Instruction):
@@ -371,8 +385,8 @@ class PyEvalBase:
         if inst.argval not in comparison_ops:
             raise NotImplementedError(f"{inst.opname} {inst.argval}")
         op = comparison_ops[inst.argval]
-        left, right = self.popn(2)
-        self.call_function(SymVar(var=op), [left, right], {})
+        left, right = self.stack.pop_n(2)
+        self.call_function(CallableVariable(op), [left, right], {})
 
     # def IMPORT_NAME(self, inst: Instruction):
     # def IMPORT_FROM(self, inst: Instruction):
@@ -382,6 +396,7 @@ class PyEvalBase:
     # def JUMP_IF_TRUE_OR_POP(self, inst: Instruction):
 
     def JUMP_ABSOLUTE(self, inst: Instruction):
+        assert inst.target is not None
         for i, ins in enumerate(self.instructions):
             if inst.target.offset == ins.offset:
                 self.instruction_pointer = i
@@ -389,11 +404,11 @@ class PyEvalBase:
         raise Exception("JUMP_ABSOLUTE error")
 
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
-        value = self.pop()
+        value = self.stack.pop()
         if isinstance(self, PyEval):
-            self.push(value)
+            self.stack.push(value)
             self.output.compile_subgraph(self)
-            self.pop()
+            self.stack.pop()
 
             if_next = self.create_call_resume_at(self.next_instruction)
             if_jump = self.create_call_resume_at(inst.target)
@@ -416,19 +431,19 @@ class PyEvalBase:
         else:
             raise Exception(f"name '{name}' is not found")
 
-        self.push(SymVar(var=var))
+        self.stack.push(VariableBase(var=var))
 
     # def SETUP_FINALLY(self, inst: Instruction):
     def LOAD_FAST(self, inst: Instruction):
         name = inst.argval
-        self.push(self.symbolic_locals[name])
+        self.stack.push(self.symbolic_locals[name])
         if name.startswith("___stack"):
             self.symbolic_locals.pop(name)
         if name in ['self']:
             self.symbolic_locals.pop(name)
 
     def STORE_FAST(self, inst: Instruction):
-        self.symbolic_locals[inst.argval] = self.pop()
+        self.symbolic_locals[inst.argval] = self.stack.pop()
 
     # def DELETE_FAST(self, inst: Instruction):
 
@@ -436,8 +451,9 @@ class PyEvalBase:
 
     @break_graph_if_unsupported(push=1)
     def CALL_FUNCTION(self, inst: Instruction):
-        args = self.popn(inst.argval)
-        fn = self.pop()
+        args = self.stack.pop_n(inst.argval)
+        fn = self.stack.pop()
+        assert isinstance(fn, CallableVariable)
         self.call_function(fn, args, {})
 
     # def MAKE_FUNCTION(self, inst: Instruction):
@@ -449,9 +465,10 @@ class PyEvalBase:
 
     @break_graph_if_unsupported(push=1)
     def CALL_FUNCTION_KW(self, inst: Instruction):
-        argnames = self.pop()
-        args = self.popn(inst.argval)
-        fn = self.pop()
+        argnames = self.stack.pop()
+        args = self.stack.pop_n(inst.argval)
+        fn = self.stack.pop()
+        assert isinstance(fn, CallableVariable)
         argnames = argnames.var
         args, kwargs_list = args[: -len(argnames)], args[-len(argnames) :]
         kwargs = dict(zip(argnames, kwargs_list))
@@ -494,7 +511,7 @@ class InlinePyEval(PyEvalBase):
         code: types.CodeType,
         symbolic_locals: OrderedDict[str, Any],
         symbolic_globals: OrderedDict[str, Any],
-        func: SymVar,
+        func: VariableBase,
     ):
         f_globals = func.var.__globals__
         f_builtins = f_globals['__builtins__']
@@ -519,9 +536,9 @@ class InlinePyEval(PyEvalBase):
     def inline_call(
         cls,
         parent: PyEvalBase,
-        func: SymVar,
-        args: list[SymVar],
-        kwargs: dict[str, SymVar],
+        func: VariableBase,
+        args: list[VariableBase],
+        kwargs: dict[str, VariableBase],
     ):
         code = func.var.__code__
         if code.co_name in ("__setitem__", "__setattr__"):
@@ -557,7 +574,7 @@ class InlinePyEval(PyEvalBase):
         return tracer.symbolic_result
 
     def RETURN_VALUE(self, inst: Instruction):
-        self.symbolic_result = self.pop()
+        self.symbolic_result = self.stack.pop()
         self.should_exit = True
 
 
@@ -590,7 +607,7 @@ class PyEval(PyEvalBase):
         vars = list(code_options["co_varnames"])
         for k in vars:
             if k in frame.f_locals:
-                self.symbolic_locals[k] = SymVar(
+                self.symbolic_locals[k] = VariableBase(
                     var=frame.f_locals[k],
                     source=LocalSource(k),
                 )
@@ -634,6 +651,7 @@ class PyEval(PyEvalBase):
             )
 
             nonlocal inst
+            assert inst is not None
             target = next(i for i in instructions if i.offset == inst.offset)
 
             for i in range(stack_len):
