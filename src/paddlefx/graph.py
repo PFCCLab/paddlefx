@@ -311,7 +311,9 @@ class Graph:
                 )
                 continue
             elif node.op == 'output':
-                body.append(f'return {node.args[0]}\n')
+                # TODO: only works for str, need more abstract here
+                args = ','.join(node.args[0])
+                body.append(f'return ({args}, )\n')
                 continue
             raise NotImplementedError(f'node: {node.op} {node.target}')
 

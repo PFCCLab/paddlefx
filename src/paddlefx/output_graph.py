@@ -47,9 +47,7 @@ class OutputGraph:
     def apply_compiler(self, tx: PyEvalBase, rv: list[SymVar], root):
         from .eval_frame import disable
 
-        self.graph.create_node(
-            op="output", target="output", args=tuple(repr(r) for r in rv)
-        )
+        self.graph.output(tuple(str(r) for r in rv))
 
         gl = GraphLayer(root, self.graph)
 
