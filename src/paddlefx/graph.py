@@ -312,7 +312,10 @@ class Graph:
                 continue
             elif node.op == 'output':
                 # TODO: only works for str, need more abstract here
-                args = ','.join(node.args[0])
+                if isinstance(node.args[0], list):
+                    args = ','.join(node.args[0])
+                else:
+                    args = node.args[0]
                 body.append(f'return ({args}, )\n')
                 continue
             raise NotImplementedError(f'node: {node.op} {node.target}')
