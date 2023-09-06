@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import paddle
 
+from ..dispatcher import Dispatcher
+from ..magic_methods import magic_method_builtin_dispatch
 from .base import ObjectVariable, VariableBase
 
 if TYPE_CHECKING:
@@ -16,7 +18,6 @@ if TYPE_CHECKING:
 
 class CallableVariable(VariableBase):
     def __init__(self, fn: Callable):
-        super().__init__(var=fn, vtype=type(fn))
         self.fn = fn
 
     def __str__(self):
@@ -150,3 +151,44 @@ class ModuleVariable(ObjectVariable):
 class PaddleLayerVariable(CallableVariable):
     def __init__(self, fn):
         super().__init__(fn)
+
+
+class BuiltinVariable(CallableVariable):
+    def __init__(self, fn: Callable[..., Any]):
+        super().__init__(fn)
+
+    def call_function(self, /, *args, **kwargs):
+        # Lookup the handler from dispatcher
+        handler = Dispatcher.dispatch(self.value, *args, **kwargs)
+        if handler is not None:
+            return handler(*args, **kwargs)
+
+        # Try to inline call the magic function
+        magic_methods = magic_method_builtin_dispatch(self.value)
+        for magic_method in magic_methods:
+            sorted_args = args
+            if magic_method.is_reverse:
+                sorted_args = sorted_args[::-1]
+            arg_type = sorted_args[0].get_py_type()
+            if hasattr(arg_type, magic_method.name):
+                class_fn = getattr(arg_type, magic_method.name)
+                class_var = VariableFactory.from_value(
+                    arg_type,
+                    self.graph,
+                    GetAttrTracker(args[0], "__class__"),
+                )
+                assert isinstance(class_var, VariableBase)
+                fn_var = VariableFactory.from_value(
+                    class_fn,
+                    self.graph,
+                    GetAttrTracker(class_var, class_fn.__name__),
+                )
+                assert isinstance(fn_var, VariableBase)
+                return fn_var(*args)
+
+        # Break graph if neither of the above conditions is met
+        arg_types = ", ".join([type(arg).__name__ for arg in args])
+        fn_name = self.value.__name__ if hasattr(self.value, '__name__') else self.value
+        raise BreakGraphError(
+            f"Not support builtin function: {fn_name} with args: Args({arg_types})"
+        )

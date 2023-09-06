@@ -46,3 +46,11 @@ def log_instructions(
 
 def get_instructions(code: types.CodeType):
     return list(dis.get_instructions(code))
+
+
+def hashable(obj) -> bool:
+    try:
+        hash(obj)
+        return True
+    except TypeError as e:
+        return False

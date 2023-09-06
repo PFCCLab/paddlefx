@@ -17,15 +17,10 @@ class VariableBase:
     def __init__(
         self,
         *,
-        var: Any = None,
-        vtype: Any = None,
         tx: PyEvalBase | None = None,
         source: Source | None = None,
         node: Any = None,
     ) -> None:
-        # TODO: remove var and vtype
-        self.var = var
-        self.vtype = vtype if var is None else type(var)
         self.tx = tx
         self.source = source
         self.node = node
@@ -39,7 +34,7 @@ class VariableBase:
         elif self.node is not None:
             return self.node.name
 
-        return f"VariableBase({self.vtype}, {self.id})"
+        return f"VariableBase({self.id})"
 
     def __repr__(self) -> str:
         if self.source is not None and isinstance(self.source, LocalSource):
@@ -87,23 +82,6 @@ class ObjectVariable(VariableBase):
         return ObjectVariable(
             translator.output.create_node("call_method", name, args, kwargs)
         )
-
-
-# class BuiltinVariable(CallableVariable):
-#     def call_print(
-#         self,
-#         translator,
-#         *args: tuple[VariableBase],
-#         **kwargs: dict[str, VariableBase],
-#     ) -> ConstantVariable:
-#         return ConstantVariable(None)
-
-#     def call_getattr(
-#         self, translator, obj: ObjectVariable, name: str
-#     ) -> ObjectVariable:
-#         return ObjectVariable(
-#             translator.output.create_node("call_method", "__getattr__", [obj, name])
-#         )
 
 
 class LayerVariable(ObjectVariable):

@@ -7,18 +7,12 @@ import operator
 from functools import cached_property, reduce
 from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple, TypeVar
 
+from .utils import hashable
+
 if TYPE_CHECKING:
     T = TypeVar("T")
     Args = Tuple[T, ...]
     Kwargs = Dict[str, T]
-
-
-def hashable(obj) -> bool:
-    try:
-        hash(obj)
-        return True
-    except TypeError as e:
-        return False
 
 
 class NameGenerator:

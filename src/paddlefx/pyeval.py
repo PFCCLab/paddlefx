@@ -26,7 +26,7 @@ from .output_graph import OutputGraph
 from .source import LocalSource
 from .utils import format_instruction, log_code
 from .variable_stack import VariableStack
-from .variables import CallableVariable, VariableBase
+from .variables import CallableVariable, TupleVariable, VariableBase
 
 if TYPE_CHECKING:
     # import opcode
@@ -196,7 +196,7 @@ class PyEvalBase:
 
     def inline_call_function(
         self,
-        fn: VariableBase,
+        fn: CallableVariable,
         args,
         kwargs,
     ):
@@ -510,11 +510,12 @@ class PyEvalBase:
 
     @break_graph_if_unsupported(push=1)
     def CALL_FUNCTION_KW(self, inst: Instruction):
-        argnames = self.stack.pop()
+        kwargs_keys = self.stack.pop()
+        assert isinstance(kwargs_keys, TupleVariable)
         args = self.stack.pop_n(inst.argval)
         fn = self.stack.pop()
         assert isinstance(fn, CallableVariable)
-        argnames = argnames.var
+        argnames = kwargs_keys.var
         args, kwargs_list = args[: -len(argnames)], args[-len(argnames) :]
         kwargs = dict(zip(argnames, kwargs_list))
         assert len(kwargs) == len(argnames)
@@ -556,9 +557,9 @@ class InlinePyEval(PyEvalBase):
         code: types.CodeType,
         symbolic_locals: OrderedDict[str, Any],
         symbolic_globals: OrderedDict[str, Any],
-        func: VariableBase,
+        func: CallableVariable,
     ):
-        f_globals = func.var.__globals__
+        f_globals = func.fn.__globals__
         f_builtins = f_globals['__builtins__']
         if not isinstance(f_builtins, dict):
             f_builtins = f_builtins.__dict__
@@ -581,18 +582,18 @@ class InlinePyEval(PyEvalBase):
     def inline_call(
         cls,
         parent: PyEvalBase,
-        func: VariableBase,
+        func: CallableVariable,
         args: list[VariableBase],
         kwargs: dict[str, VariableBase],
     ):
-        code = func.var.__code__
+        code = func.fn.__code__
         if code.co_name in ("__setitem__", "__setattr__"):
             raise NotImplementedError(f"inline_call {code.co_name}")
 
         logging.debug(f"INLINING {code}")
         log_code(code, "INLINE_BYTECODE", log_fn=logging.debug)
 
-        bound = inspect.signature(func.var).bind(*args, **kwargs)
+        bound = inspect.signature(func.fn).bind(*args, **kwargs)
         bound.apply_defaults()
         sub_locals = OrderedDict(bound.arguments.items())
 
