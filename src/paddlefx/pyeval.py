@@ -405,6 +405,12 @@ class PyEvalBase:
 
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
         value = self.stack.pop()
+
+        if str(value) == 'gt':
+            self.output.graph.erase_node(value.node)
+            args = value.node.args
+            value = VariableBase(var=operator.gt(args[0].var, args[1].var))
+
         if isinstance(self, PyEval):
             self.stack.push(value)
             self.output.compile_subgraph(self)
@@ -439,8 +445,8 @@ class PyEvalBase:
         self.stack.push(self.symbolic_locals[name])
         if name.startswith("___stack"):
             self.symbolic_locals.pop(name)
-        if name in ['self']:
-            self.symbolic_locals.pop(name)
+        # if name in ['self']:
+        #     self.symbolic_locals.pop(name)
 
     def STORE_FAST(self, inst: Instruction):
         self.symbolic_locals[inst.argval] = self.stack.pop()

@@ -42,7 +42,15 @@ class VariableBase:
         return f"VariableBase({self.vtype}, {self.id})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        if self.source is not None and isinstance(self.source, LocalSource):
+            return self.source.local_name
+        elif self.node is not None:
+            return self.node.name
+        # specificed for the fixed variable
+        elif self.var is not None:
+            return str(self.var)
+
+        return f"VariableBase({self.vtype}, {self.id})"
 
 
 class ObjectVariable(VariableBase):

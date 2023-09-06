@@ -21,7 +21,10 @@ class CallableVariable(VariableBase):
         if self.fn is None:
             name = "None"
         else:
-            name = self.fn.__name__
+            if hasattr(self.fn, __name__):
+                name = self.fn.__name__
+            else:
+                name = repr(self.fn)
         return f"{self.__class__.__name__}({name})"
 
     def __call__(self, tx: PyEvalBase, *args: VariableBase, **kwargs) -> Any:
@@ -31,6 +34,15 @@ class CallableVariable(VariableBase):
 
         if fn.__module__.startswith("paddle"):
             # TODO: support multiple ouputs and containers
+            if 'nn.layer' in fn.__module__:
+                ot = args[0].vtype
+                target = ''
+                for name, layer in tx.f_locals['self']._sub_layers.items():
+                    if fn is layer:
+                        target = name
+                        break
+                output = graph.call_module(target, args, kwargs)
+                return VariableBase(vtype=ot, node=output)
             ot = args[0].vtype
             output = graph.call_function(fn, args, kwargs, ot)
             return VariableBase(vtype=ot, node=output)
@@ -40,7 +52,11 @@ class CallableVariable(VariableBase):
             elif fn is getattr:
                 object, name = args
                 attr = getattr(object.var, name.var)
-                return VariableBase(var=attr)
+                if callable(attr):
+                    # the attr could be callable function
+                    return CallableVariable(fn=attr)
+                else:
+                    return VariableBase(var=attr)
             elif fn in [operator.add, operator.sub]:
                 ot = args[0].vtype
                 output = graph.call_function(fn, args, kwargs, ot)
