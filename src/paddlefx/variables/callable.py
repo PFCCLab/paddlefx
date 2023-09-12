@@ -6,6 +6,8 @@ import types
 
 from typing import TYPE_CHECKING, Any, Callable
 
+import paddle
+
 from .base import ObjectVariable, VariableBase
 
 if TYPE_CHECKING:
@@ -32,17 +34,43 @@ class CallableVariable(VariableBase):
         fn = self.fn
         graph = tx.output.graph
 
-        if fn.__module__.startswith("paddle"):
-            # TODO: support multiple ouputs and containers
-            if 'nn.layer' in fn.__module__:
+        # nn.layer
+        if isinstance(fn, paddle.nn.Layer):
+            # unroll nn.Sequential
+            if 'container' in fn.__module__:
+                assert not kwargs
+                (arg,) = args
+                for idx, submod in enumerate(fn):
+                    tx.call_function(
+                        CallableVariable(fn=submod),
+                        [arg],
+                        {},
+                    )
+                    arg = tx.stack.pop()
+                return arg
+            elif not fn.__module__.startswith('paddle.nn'):
+                globals()['self'] = tx.f_locals['self']
+                result = tx.inline_call_function(
+                    CallableVariable(fn=fn.forward.__func__), (self, *args), kwargs
+                )
+                del globals()['self']
+                return result
+            else:
+                # basic layer
                 ot = args[0].vtype
                 target = ''
-                for name, layer in tx.f_locals['self']._sub_layers.items():
-                    if fn is layer:
+                model = (
+                    tx.f_locals['self'] if 'self' in tx.f_locals else globals()['self']
+                )
+                for name, layers in model.named_sublayers():
+                    if fn is layers:
                         target = name
                         break
-                output = graph.call_module(target, args, kwargs)
-                return VariableBase(vtype=ot, node=output)
+                return VariableBase(
+                    vtype=ot, node=graph.call_module(target, args, kwargs)
+                )
+        elif fn.__module__.startswith("paddle"):
+            # TODO: support multiple ouputs and containers
             ot = args[0].vtype
             output = graph.call_function(fn, args, kwargs, ot)
             return VariableBase(vtype=ot, node=output)
@@ -53,15 +81,23 @@ class CallableVariable(VariableBase):
                 object, name = args
                 attr = getattr(object.var, name.var)
                 if callable(attr):
-                    # the attr could be callable function
-                    return CallableVariable(fn=attr)
+                    if isinstance(attr, types.MethodType):
+                        ot = args[0].vtype
+                        return MethodVariable(fn=attr, vtype=ot)
+                    else:
+                        # the attr could be callable function
+                        return CallableVariable(fn=attr)
                 else:
                     return VariableBase(var=attr)
-            elif fn in [operator.add, operator.sub]:
+            elif fn in [operator.add, operator.sub, operator.iadd]:
                 ot = args[0].vtype
                 output = graph.call_function(fn, args, kwargs, ot)
                 return VariableBase(vtype=ot, node=output)
             elif fn in [operator.gt]:
+                ot = args[0].vtype
+                output = graph.call_function(fn, args, kwargs, ot)
+                return VariableBase(vtype=ot, node=output)
+            elif fn in [operator.is_, operator.is_not]:
                 ot = args[0].vtype
                 output = graph.call_function(fn, args, kwargs, ot)
                 return VariableBase(vtype=ot, node=output)
@@ -108,3 +144,21 @@ class ModuleVariable(ObjectVariable):
             return CallableVariable(out_obj)
         else:
             return ObjectVariable(out_obj)
+
+
+class PaddleLayerVariable(CallableVariable):
+    def __init__(self, fn):
+        super().__init__(fn)
+
+
+class MethodVariable(VariableBase):
+    def __init__(self, fn, vtype=None):
+        super().__init__(var=fn, vtype=type(fn) if vtype is None else vtype)
+        self.fn = fn
+
+    def __call__(self, tx: PyEvalBase, *args: VariableBase, **kwargs):
+        fn = self.fn
+        graph = tx.output.graph
+        ot = self.vtype
+        output = graph.call_method(fn, args, kwargs, ot)
+        return VariableBase(vtype=ot, node=output)

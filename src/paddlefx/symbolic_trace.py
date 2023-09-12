@@ -36,8 +36,7 @@ def _is_leaf_module(m) -> bool:
         # `paddle.fluid.dygraph.nn` has removed in paddlepaddle 2.5.0 (develop),
         # but still keep it for compatibility with paddlepaddle <= 2.4
         or m.__module__.startswith("paddle.fluid.dygraph.nn")
-        and not isinstance(m, paddle.nn.Sequential)
-    )
+    ) and not isinstance(m, paddle.nn.Sequential)
 
 
 class _PatchedFn(NamedTuple):
