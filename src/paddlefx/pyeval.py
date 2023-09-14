@@ -107,6 +107,7 @@ class PyEvalBase:
         self.f_locals = f_locals
         self.f_builtins = f_builtins
         self.should_exit = False
+        self.indexof = {id(i): n for n, i in enumerate(instructions)}
 
         # checkpoint
         self.checkpoint: tuple[Instruction, PyEvalState] | None = None
@@ -297,7 +298,14 @@ class PyEvalBase:
     # def BEFORE_ASYNC_WITH(self, inst: Instruction):
     # def BEGIN_FINALLY(self, inst: Instruction):
     # def END_ASYNC_FOR(self, inst: Instruction):
-    # def INPLACE_ADD(self, inst: Instruction):
+    def INPLACE_ADD(self, inst: Instruction):
+        fn = operator.iadd
+
+        nargs = len(inspect.signature(fn).parameters)
+        args = self.stack.pop_n(nargs)
+        assert type(args[0]) == type(args[1])
+        self.call_function(CallableVariable(fn), args, {})
+
     # def INPLACE_SUBTRACT(self, inst: Instruction):
     # def INPLACE_MULTIPLY(self, inst: Instruction):
 
@@ -388,6 +396,15 @@ class PyEvalBase:
         left, right = self.stack.pop_n(2)
         self.call_function(CallableVariable(op), [left, right], {})
 
+    def IS_OP(self, inst):
+        assert inst.argval == 0 or inst.argval == 1
+        if inst.argval == 0:
+            new_argval = "is"
+        else:
+            new_argval = "is not"
+        inst.argval = new_argval
+        self.COMPARE_OP(inst)
+
     # def IMPORT_NAME(self, inst: Instruction):
     # def IMPORT_FROM(self, inst: Instruction):
 
@@ -403,8 +420,36 @@ class PyEvalBase:
                 return
         raise Exception("JUMP_ABSOLUTE error")
 
+    def jump(self, inst):
+        self.instruction_pointer = self.indexof[id(inst.target)]
+
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
         value = self.stack.pop()
+
+        if str(value) == 'gt':
+            self.output.graph.erase_node(value.node)
+            args = value.node.args
+            value = operator.gt(args[0].var, args[1].var)
+            if not value:
+                self.jump(inst)
+            return
+
+        if str(value) == 'is_':
+            self.output.graph.erase_node(value.node)
+            args = value.node.args
+            value = operator.is_(args[0].var, args[1].var)
+            if not value:
+                self.jump(inst)
+            return
+
+        if str(value).startswith('is_not'):
+            self.output.graph.erase_node(value.node)
+            args = value.node.args
+            value = operator.is_not(args[0].var, args[1].var)
+            if not value:
+                self.jump(inst)
+            return
+
         if isinstance(self, PyEval):
             self.stack.push(value)
             self.output.compile_subgraph(self)
@@ -439,8 +484,8 @@ class PyEvalBase:
         self.stack.push(self.symbolic_locals[name])
         if name.startswith("___stack"):
             self.symbolic_locals.pop(name)
-        if name in ['self']:
-            self.symbolic_locals.pop(name)
+        # if name in ['self']:
+        #     self.symbolic_locals.pop(name)
 
     def STORE_FAST(self, inst: Instruction):
         self.symbolic_locals[inst.argval] = self.stack.pop()

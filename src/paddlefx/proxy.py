@@ -96,6 +96,7 @@ reflectable_magic_methods = {
     'or': '{} | {}',
     'xor': '{} ^ {}',
     'getitem': '{}[{}]',
+    'iadd': '{} + {}',
 }
 
 magic_methods = dict(
