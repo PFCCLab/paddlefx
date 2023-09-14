@@ -82,8 +82,9 @@ class CallableVariable(VariableBase):
                 attr = getattr(object.var, name.var)
                 if callable(attr):
                     if isinstance(attr, types.MethodType):
+                        # For method variables
                         ot = args[0].vtype
-                        return MethodVariable(fn=attr, vtype=ot)
+                        return CallableVariable(fn=attr)
                     else:
                         # the attr could be callable function
                         return CallableVariable(fn=attr)
@@ -149,16 +150,3 @@ class ModuleVariable(ObjectVariable):
 class PaddleLayerVariable(CallableVariable):
     def __init__(self, fn):
         super().__init__(fn)
-
-
-class MethodVariable(VariableBase):
-    def __init__(self, fn, vtype=None):
-        super().__init__(var=fn, vtype=type(fn) if vtype is None else vtype)
-        self.fn = fn
-
-    def __call__(self, tx: PyEvalBase, *args: VariableBase, **kwargs):
-        fn = self.fn
-        graph = tx.output.graph
-        ot = self.vtype
-        output = graph.call_method(fn, args, kwargs, ot)
-        return VariableBase(vtype=ot, node=output)

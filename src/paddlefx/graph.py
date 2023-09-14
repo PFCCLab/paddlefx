@@ -220,20 +220,6 @@ class Graph:
             # return_type=return_type,
         )
 
-    def call_method(
-        self,
-        target: Callable[..., Any],
-        args: tuple[Any, ...] = (),
-        kwargs: dict[str, Any] = {},
-        return_type: Any | None = None,
-    ) -> Node:
-        return self.create_node(
-            op='call_method',
-            target=target,
-            args=args,
-            kwargs=kwargs,
-        )
-
     def erase_node(self, to_erase: Node) -> None:
         if len(to_erase.users) > 0:
             raise RuntimeError(

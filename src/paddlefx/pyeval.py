@@ -58,6 +58,7 @@ def break_graph_if_unsupported(*, push: int):
             inst_copy = copy.copy(inst)
             inst_copy.exn_tab_entry = None
             self.output.add_output_instructions([inst_copy])
+
             stack_effect = dis.stack_effect(inst.opcode, inst.arg)
             self.stack.pop_n(push - stack_effect)
             for _ in range(push):
@@ -164,8 +165,8 @@ class PyEvalBase:
         try:
             if not hasattr(self, inst.opname):
                 raise NotImplementedError(f"missing: {inst.opname}")
-
             getattr(self, inst.opname)(inst)
+
             # return True if should exit
             return inst.opname == "RETURN_VALUE"
         except NotImplementedError as e:
@@ -602,6 +603,7 @@ class InlinePyEval(PyEvalBase):
             symbolic_globals=parent.symbolic_globals,
             func=func,
         )
+
         try:
             tracer.run()
         except Exception:
