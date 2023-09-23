@@ -2,30 +2,22 @@ from __future__ import annotations
 
 import ctypes
 
-import mlir.dialects.func as func
 import paddle
-
-from mlir.dialects import arith
-from mlir.execution_engine import ExecutionEngine
-from mlir.ir import *
-from mlir.passmanager import *
-from mlir.runtime.np_to_memref import get_ranked_memref_descriptor
 
 import paddlefx
 
 
-def custom_compiler(gm: paddlefx.GraphLayer, inputs):
+def triton_compiler(gm: paddlefx.GraphLayer, inputs):
     print("Custom Compiler from FX Graph to MLIR:")
     print("-------------------------------------------------------------------")
     gm.graph.print_tabular()
-    # Initialize the MLIR context.
-    ctx = Context()
-    with Location.unknown(ctx):
-        module = importer(gm, inputs)
-        module = lowering(module)
-        compiled = compile_module(module)
-        data = prepare_data(gm, inputs)
-        func = load_lib(compiled, data)
+
+    module = importer(gm, inputs)
+    module = lowering(module)
+    compiled = compile_module(module)
+    data = prepare_data(gm, inputs)
+    func = load_lib(compiled, data)
+
     return func
 
 
