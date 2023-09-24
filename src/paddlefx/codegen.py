@@ -141,7 +141,7 @@ class PyCodegen:
                 output.append(self.create_load(value.source.local_name))
             else:
                 raise Exception(f"unsupported source: {value.source}")
-        elif value.vtype == TensorType:
+        elif type(value.var) == TensorType:
             # TODO: clean it
             graph_outputs_key = id(value)
             if graph_outputs_key not in graph_outputs:
@@ -151,19 +151,19 @@ class PyCodegen:
             # TODO: rm hardcode
             output.append(self.create_load_const(0))
             output.append(create_instruction("BINARY_SUBSCR"))
-        elif value.vtype == None:
+        elif value.var == None:
             output.append(self.create_load_const(None))
-        elif value.vtype == types.FunctionType:
+        elif type(value.var) == types.FunctionType:
             output.append(self.create_load_global(value.var.__name__, False))
-        elif value.vtype == types.BuiltinFunctionType:
+        elif type(value.var) == types.BuiltinFunctionType:
             if value.var == print:
                 output.append(self.create_load_global(value.var.__name__, False))
-        elif value.vtype in [str, bool, int]:
+        elif type(value.var) in [str, bool, int]:
             output.append(self.create_load_const(value.var))
-        elif value.vtype == tuple:
-            self.call(value.var)
+        elif type(value.var) == tuple:
+            self.call(VariableStack(list(value.var)))
             output.append(create_instruction("BUILD_TUPLE", arg=len(value.var)))
         else:
-            raise ValueError(f"unsupported type: {value.vtype}")
+            raise ValueError(f"unsupported type: {type(value.var)}")
 
         self.top_of_stack = value
