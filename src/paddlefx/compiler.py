@@ -7,7 +7,7 @@ import paddle
 import paddlefx
 
 
-def triton_compiler(gm: paddlefx.GraphLayer, inputs):
+def mlir_compiler(gm: paddlefx.GraphLayer, inputs):
     print("Custom Compiler from FX Graph to MLIR:")
     print("-------------------------------------------------------------------")
     gm.graph.print_tabular()

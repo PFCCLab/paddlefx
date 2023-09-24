@@ -7,14 +7,12 @@ import paddle.tensor
 
 import paddlefx
 
-from paddlefx.compiler import custom_compiler
-
 
 def add(x, y):
     return x + y
 
 
-optimized_net = paddlefx.optimize(custom_compiler)(add)
+optimized_net = paddlefx.optimize()(add)
 
 x = paddle.rand([1, 224])
 out = add(x, x)

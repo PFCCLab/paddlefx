@@ -7,6 +7,7 @@ import types
 from typing import Callable
 
 from ._eval_frame import set_eval_frame
+from .compiler import mlir_compiler
 from .convert_frame import convert_frame
 
 
@@ -44,7 +45,7 @@ def disable(fn=None):
     return DisableContext()(fn)
 
 
-def optimize(backend: Callable):
+def optimize(backend: Callable = mlir_compiler):
     def _fn(backend: Callable):
         def __fn(frame: types.FrameType):
             try:
