@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import paddle
 
 from ..source import Source
-from .base import ObjectVariable, VariableBase
+from .base import ObjectVariable, TensorVariable, VariableBase
 
 if TYPE_CHECKING:
     from ..pyeval import PyEvalBase
@@ -101,7 +101,7 @@ class CallableVariable(VariableBase):
                 ot = type(args[0].var)
                 obj_cls = type(args[0])
                 output = graph.call_function(fn, args, kwargs, ot)
-                return obj_cls(node=output)
+                return TensorVariable(None, node=output)
             elif fn in [operator.gt]:
                 ot = type(args[0].var)
                 obj_cls = type(args[0])

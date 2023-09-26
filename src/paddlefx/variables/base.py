@@ -4,7 +4,6 @@ import itertools
 
 from typing import TYPE_CHECKING, Any
 
-from ..proxy import Proxy
 from ..source import LocalSource, Source
 
 _sym_var_id_counter = itertools.count()
@@ -122,13 +121,10 @@ class LayerVariable(ObjectVariable):
 class TensorVariable(ObjectVariable):
     def __init__(
         self,
-        proxy: Proxy,
+        tensor,
         *,
         tx: PyEvalBase | None = None,
         source: Source | None = None,
         node: Any = None,
     ):
-        super().__init__(proxy, tx=tx, source=source, node=node)
-
-    def as_proxy(self) -> Proxy:
-        return self.var
+        super().__init__(tensor, tx=tx, source=source, node=node)
