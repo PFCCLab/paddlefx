@@ -1,8 +1,8 @@
 [build-system]
 requires = [
-    "setuptools>=45",
+    "setuptools>=60",
+    "setuptools_scm<8.0",
     "wheel",
-    "setuptools_scm[toml]>=6.2",
     "ninja==1.11.1",
     "cmake>=3.25.0",
     "mypy==1.0.0",
