@@ -111,7 +111,7 @@ PyInterpreterFrameProxy_New(_PyInterpreterFrame *frame) {
   PyInterpreterFrameProxy *self =
       (PyInterpreterFrameProxy *)type->tp_alloc(type, 0);
   if (!self) {
-    // VLOG(7) << "Failed to allocate PyInterpreterFrameProxy";
+    DEBUG_TRACE0("Failed to allocate PyInterpreterFrameProxy");
     return NULL;
   }
   self->frame = frame;
@@ -288,7 +288,7 @@ inline static PyObject *eval_custom_code_py311_plus(PyThreadState *tstate,
   _PyInterpreterFrame *shadow =
       (_PyInterpreterFrame *)malloc(sizeof(PyObject *) * size);
   if (shadow == NULL) {
-    // VLOG(7) << "Failed to allocate memory for shadow frame.";
+    DEBUG_TRACE0("Failed to allocate memory for shadow frame.");
     return NULL;
   }
   // Create a new function object from code object. Refer to MAKE_FUNCTION.
@@ -308,7 +308,7 @@ inline static PyObject *eval_custom_code_py311_plus(PyThreadState *tstate,
   // The namemap to map the name to index in new frame localsplus.
   PyObject *namemap = PyDict_New();
   if (namemap == NULL) {
-    // VLOG(7) << "Failed to create namemap.";
+    DEBUG_TRACE0("Failed to create namemap.");
     free(shadow);
     return NULL;
   }
@@ -348,13 +348,6 @@ inline static PyObject *eval_custom_code_py310_minus(PyThreadState *tstate,
     ncells = PyTuple_GET_SIZE(code->co_cellvars);
     nfrees = PyTuple_GET_SIZE(code->co_freevars);
   }
-
-  // DEBUG_NULL_CHECK(tstate);
-  // DEBUG_NULL_CHECK(frame);
-  // DEBUG_NULL_CHECK(code);
-  // DEBUG_CHECK(ncells == PyTuple_GET_SIZE(frame->f_code->co_cellvars));
-  // DEBUG_CHECK(nfrees == PyTuple_GET_SIZE(frame->f_code->co_freevars));
-  // DEBUG_CHECK(nlocals_new >= nlocals_old);
 
   FrameObject *shadow = PyFrame_New(tstate, code, frame->f_globals, NULL);
   if (shadow == NULL) {
@@ -428,11 +421,7 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, FrameObject *frame,
 #endif
   PyObject *result = PyObject_CallObject(callback, args);
   Py_DECREF(args);
-  // VLOG(7) << "After call eval_frame_function and decrease frame.";
-  // class CustomCode(Protocal):
-  //     code: CodeType | None
-  //     disable_eval_frame: bool
-  // result: CustomCode
+  DEBUG_TRACE0("After call eval_frame_function and decrease frame.");
   if (result == NULL) {
     // internal exception
     return NULL;
