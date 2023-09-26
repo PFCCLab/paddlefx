@@ -425,21 +425,28 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, FrameObject *frame,
   if (result == NULL) {
     // internal exception
     return NULL;
-  } else if (result != Py_None) {
-    //  NOTE: Cache is not supported now
-    PyCodeObject *code = (PyCodeObject *)PyObject_GetAttrString(result, "code");
-    // Re-enable custom behavior
-    eval_frame_callback_set(callback);
+  } else {
+    PyObject *out;
+    if (result != Py_None) {
+      //  NOTE: Cache is not supported now
+      PyCodeObject *code =
+          (PyCodeObject *)PyObject_GetAttrString(result, "code");
+      // Re-enable custom behavior
+      eval_frame_callback_set(callback);
 
 #if PY_VERSION_HEX >= 0x030b0000
-    return eval_custom_code_py311_plus(tstate, frame, code, throw_flag);
+      out = eval_custom_code_py311_plus(tstate, frame, code, throw_flag);
 #else
-    return eval_custom_code_py310_minus(tstate, frame, code, throw_flag);
+      out = eval_custom_code_py310_minus(tstate, frame, code, throw_flag);
 #endif
-  } else {
-    // Re-enable custom behavior
-    eval_frame_callback_set(callback);
-    return eval_frame_default(tstate, frame, throw_flag);
+    } else {
+      // Re-enable custom behavior
+      eval_frame_callback_set(callback);
+      out = eval_frame_default(tstate, frame, throw_flag);
+    }
+    Py_DECREF(result);
+    Py_DECREF(code);
+    return out;
   }
 }
 
