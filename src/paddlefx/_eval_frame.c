@@ -439,13 +439,13 @@ static PyObject *_custom_eval_frame(PyThreadState *tstate, FrameObject *frame,
 #else
       out = eval_custom_code_py310_minus(tstate, frame, code, throw_flag);
 #endif
+      Py_DECREF(code);
     } else {
       // Re-enable custom behavior
       eval_frame_callback_set(callback);
       out = eval_frame_default(tstate, frame, throw_flag);
     }
     Py_DECREF(result);
-    Py_DECREF(code);
     return out;
   }
 }
