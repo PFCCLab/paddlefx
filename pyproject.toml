@@ -9,6 +9,11 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "paddlefx"
+dynamic = ["version"]
+description = "An experimental project for paddle python IR."
+
 [tool.black]
 skip-string-normalization = true
 # default value may too big to run
@@ -37,4 +42,4 @@ filterwarnings = [
 ]
 
 [tool.setuptools_scm]
-write_to = "src/paddlefx/_version.py"
+version_file = "src/paddlefx/_version.py"
