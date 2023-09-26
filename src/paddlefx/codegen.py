@@ -6,8 +6,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from .bytecode_transformation import *  # noqa
-from .paddle_utils import TensorType
 from .source import LocalSource
+from .variables.base import TensorVariable
 
 if TYPE_CHECKING:
     from .graph import Node
@@ -141,7 +141,7 @@ class PyCodegen:
                 output.append(self.create_load(value.source.local_name))
             else:
                 raise Exception(f"unsupported source: {value.source}")
-        elif type(value.var) == TensorType:
+        elif isinstance(value, TensorVariable):
             # TODO: clean it
             graph_outputs_key = id(value)
             if graph_outputs_key not in graph_outputs:
