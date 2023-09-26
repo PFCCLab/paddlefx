@@ -586,14 +586,14 @@ class InlinePyEval(PyEvalBase):
         args: list[VariableBase],
         kwargs: dict[str, VariableBase],
     ):
-        code = func.fn.__code__
+        code = func.var.__code__
         if code.co_name in ("__setitem__", "__setattr__"):
             raise NotImplementedError(f"inline_call {code.co_name}")
 
         logging.debug(f"INLINING {code}")
         log_code(code, "INLINE_BYTECODE", log_fn=logging.debug)
 
-        bound = inspect.signature(func.fn).bind(*args, **kwargs)
+        bound = inspect.signature(func.var).bind(*args, **kwargs)
         bound.apply_defaults()
         sub_locals = OrderedDict(bound.arguments.items())
 
