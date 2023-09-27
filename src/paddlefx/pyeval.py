@@ -475,8 +475,10 @@ class PyEvalBase:
             var = self.f_builtins[name]
         else:
             raise Exception(f"name '{name}' is not found")
-
-        self.stack.push(VariableBase(var=var))
+        if isinstance(var, (types.FunctionType, types.BuiltinFunctionType)):
+            self.stack.push(CallableVariable(fn=var))
+        else:
+            self.stack.push(VariableBase(var=var))
 
     # def SETUP_FINALLY(self, inst: Instruction):
     def LOAD_FAST(self, inst: Instruction):
@@ -559,7 +561,7 @@ class InlinePyEval(PyEvalBase):
         symbolic_globals: OrderedDict[str, Any],
         func: CallableVariable,
     ):
-        f_globals = func.fn.__globals__
+        f_globals = func.var.__globals__
         f_builtins = f_globals['__builtins__']
         if not isinstance(f_builtins, dict):
             f_builtins = f_builtins.__dict__
@@ -653,10 +655,19 @@ class PyEval(PyEvalBase):
         vars = list(code_options["co_varnames"])
         for k in vars:
             if k in frame.f_locals:
-                self.symbolic_locals[k] = VariableBase(
-                    var=frame.f_locals[k],
-                    source=LocalSource(k),
-                )
+                value = frame.f_locals[k]
+                # TODO: implement VariableFactory
+                print(value, type(value))
+                if isinstance(value, (types.FunctionType)):
+                    self.symbolic_locals[k] = CallableVariable(
+                        fn=value,
+                        source=LocalSource(k),
+                    )
+                else:
+                    self.symbolic_locals[k] = VariableBase(
+                        var=value,
+                        source=LocalSource(k),
+                    )
 
         # TODO: rm hardcode
         # create inputs
