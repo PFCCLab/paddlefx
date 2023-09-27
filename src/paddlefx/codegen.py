@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 from .bytecode_transformation import *  # noqa
 from .source import LocalSource
+from .variable_stack import VariableStack
 from .variables.base import TensorVariable
 
 if TYPE_CHECKING:
     from .graph import Node
     from .pyeval import PyEvalBase
-    from .variable_stack import VariableStack
     from .variables.base import VariableBase
 
 

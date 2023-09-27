@@ -657,7 +657,6 @@ class PyEval(PyEvalBase):
             if k in frame.f_locals:
                 value = frame.f_locals[k]
                 # TODO: implement VariableFactory
-                print(value, type(value))
                 if isinstance(value, (types.FunctionType)):
                     self.symbolic_locals[k] = CallableVariable(
                         fn=value,
