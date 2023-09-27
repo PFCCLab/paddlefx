@@ -23,10 +23,12 @@ from .bytecode_transformation import (
 )
 from .codegen import PyCodegen
 from .output_graph import OutputGraph
+from .paddle_utils import TensorType
 from .source import LocalSource
 from .utils import format_instruction, log_code
 from .variable_stack import VariableStack
 from .variables import CallableVariable, TupleVariable, VariableBase
+from .variables.base import TensorVariable
 
 if TYPE_CHECKING:
     # import opcode
@@ -273,10 +275,9 @@ class PyEvalBase:
 
     def BINARY_ADD(self, inst: Instruction):
         fn = operator.add
-
         nargs = len(inspect.signature(fn).parameters)
         args = self.stack.pop_n(nargs)
-        assert type(args[0]) == type(args[1])
+        assert type(args[0]) == type(args[1]), f"{type(args[0])} != {type(args[1])}"
         self.call_function(CallableVariable(fn), args, {})
 
     def BINARY_SUBTRACT(self, inst: Instruction):
@@ -660,6 +661,11 @@ class PyEval(PyEvalBase):
                 if isinstance(value, (types.FunctionType)):
                     self.symbolic_locals[k] = CallableVariable(
                         fn=value,
+                        source=LocalSource(k),
+                    )
+                elif isinstance(value, TensorType):
+                    self.symbolic_locals[k] = TensorVariable(
+                        tensor=value,
                         source=LocalSource(k),
                     )
                 else:
