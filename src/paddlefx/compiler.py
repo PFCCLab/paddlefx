@@ -40,29 +40,32 @@ class CompilerBase:
 
     def compile(self, gl: paddlefx.GraphLayer, dummy_inputs: list) -> Callable:
         dummy_outputs = gl.forward(*dummy_inputs)
-        symbol_table = {}
+        symbol_table: dict[str, Any] = {}
         try:
             for node in gl.graph.nodes:
                 getattr(self, f"compile_{node.op}")(node, symbol_table, dummy_inputs)
             self.input_index = 0
             return self.gen_compiled_func(symbol_table, dummy_outputs)
-        except AttributeError as e:
+        except (AttributeError, NotImplementedError) as e:
             print(f"AttributeError when compiling graph: {e}")
             self.input_index = 0
             return gl.forward
 
-    def gen_compiled_func(self, symbol_table: dict, dummy_outputs: Any):
+    def gen_compiled_func(self, symbol_table: dict[str, Any], dummy_outputs: Any):
         raise NotImplementedError("CompilerBase is a abstract class")
 
 
 class TVMCompiler(CompilerBase):
-    def gen_compiled_func(self, symbol_table: dict, dummy_outputs: Any):
+    def gen_compiled_func(self, symbol_table: dict[str, te.Tensor], dummy_outputs: Any):
         tgt = tvm.target.Target(target="llvm", host="llvm")
-        s = te.create_schedule(symbol_table["output"].op)
-
+        schedule = te.create_schedule(symbol_table["output"].op)
         tvm_func = tvm.build(
-            s,
-            [v for k, v in symbol_table.items() if k != "output"],
+            schedule,
+            [
+                v
+                for k, v in symbol_table.items()
+                if v.name.startswith("input") or k == "output"
+            ],
             tgt,
             name=symbol_table["output"].name,
         )
@@ -80,27 +83,31 @@ class TVMCompiler(CompilerBase):
         return compiled_func
 
     def compile_placeholder(
-        self, node: paddlefx.Node, symbol_table: dict, inputs: list
+        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
     ):
-        symbol_table[str(node.name)] = te.placeholder(
+        symbol_table[node.name] = te.placeholder(
             inputs[self.input_index].shape,
             paddle_dtype_to_str(inputs[self.input_index].dtype),
-            name=str(node.name),
+            name=f"input_{node.name}",
         )
         self.input_index += 1
 
     def compile_call_function(
-        self, node: paddlefx.Node, symbol_table: dict, inputs: list
+        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
     ):
-        if node.target.__name__ == "add":
+        if node.target.__name__ in ["add", "sub", "mul", "div"]:
             left = symbol_table[str(node.args[0])]
             right = symbol_table[str(node.args[1])]
-            symbol_table[str(node.name)] = te.compute(
-                left.shape, lambda i, j: left[i, j] + right[i, j], name=str(node.name)
+            symbol_table[str(node.name)] = te.compute(  # type: ignore
+                left.shape,
+                lambda *i: node.target(left[i], right[i]),
+                name=str(node.name),
             )
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Unsupported function: {node.target.__name__}")
 
-    def compile_output(self, node: paddlefx.Node, symbol_table: dict, inputs: list):
+    def compile_output(
+        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
+    ):
         ret = symbol_table.get(str(node.args[0][0]))
         symbol_table["output"] = ret

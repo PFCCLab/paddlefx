@@ -12,14 +12,17 @@ from paddlefx.compiler import TVMCompiler
 # logging.getLogger().setLevel(logging.DEBUG)
 
 
-def add(x, y):
-    return x + y
+def func(x, y):
+    p = x - y
+    q = x + y
+    return q
 
 
-optimized_net = paddlefx.optimize(add, backend=TVMCompiler(print_tabular=True))
+optimized_net = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
 
 x = paddle.rand([1, 224])
-out = add(x, x)
-res = optimized_net(x, x)
+y = paddle.rand([1, 224])
+out = func(x, y)
+res = optimized_net(x, y)
 
 np.testing.assert_equal(res.numpy(), out.numpy())
