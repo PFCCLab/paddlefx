@@ -122,7 +122,7 @@ class _node_list:
 
     def __iter__(self):
         root, direction = self.graph._root, self.direction
-        cur = getattr(root, direction)
+        cur: Node = getattr(root, direction)
         while cur is not root:
             if not cur._erased:
                 yield cur

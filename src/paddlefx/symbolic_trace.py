@@ -225,11 +225,14 @@ class Tracer:
         return GraphLayer(root, self.graph)
 
     def _proxy_placeholder(self, name):
-        n = self.graph.create_node('placeholder', name, (), {})
-        return Proxy(n, self)
+        return self.create_proxy('placeholder', name, (), {})
 
     def create_node(self, op, target, args=None, kwargs=None, name=None):
         return self.graph.create_node(op, target, args, kwargs, name)
+
+    def create_proxy(self, op, target, args=None, kwargs=None, name=None):
+        node = self.graph.create_node(op, target, args, kwargs, name)
+        return Proxy(node, self)
 
     def get_param(self, target):
         return self.graph.get_param(target)

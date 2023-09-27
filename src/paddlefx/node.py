@@ -15,6 +15,7 @@ class Node:
     def __init__(self, graph, name, op, target, args, kwargs):
         self.graph = graph
         self.name = name  # unique name of value being created
+        # TODO: whether call_module should be call_layer?
         self.op = op  # the kind of operation = placeholder|call_method|call_module|call_function|getattr
         self.target = target  # for method/module/function, the name of the method/module/function/attr
         # being invoked, e.g add, layer1, or paddle.add

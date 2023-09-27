@@ -26,7 +26,7 @@ from .output_graph import OutputGraph
 from .source import LocalSource
 from .utils import format_instruction, log_code
 from .variable_stack import VariableStack
-from .variables import CallableVariable, VariableBase
+from .variables import CallableVariable, TupleVariable, VariableBase
 
 if TYPE_CHECKING:
     # import opcode
@@ -196,7 +196,7 @@ class PyEvalBase:
 
     def inline_call_function(
         self,
-        fn: VariableBase,
+        fn: CallableVariable,
         args,
         kwargs,
     ):
@@ -475,8 +475,10 @@ class PyEvalBase:
             var = self.f_builtins[name]
         else:
             raise Exception(f"name '{name}' is not found")
-
-        self.stack.push(VariableBase(var=var))
+        if isinstance(var, (types.FunctionType, types.BuiltinFunctionType)):
+            self.stack.push(CallableVariable(fn=var))
+        else:
+            self.stack.push(VariableBase(var=var))
 
     # def SETUP_FINALLY(self, inst: Instruction):
     def LOAD_FAST(self, inst: Instruction):
@@ -510,11 +512,12 @@ class PyEvalBase:
 
     @break_graph_if_unsupported(push=1)
     def CALL_FUNCTION_KW(self, inst: Instruction):
-        argnames = self.stack.pop()
+        kwargs_keys = self.stack.pop()
+        assert isinstance(kwargs_keys, TupleVariable)
         args = self.stack.pop_n(inst.argval)
         fn = self.stack.pop()
         assert isinstance(fn, CallableVariable)
-        argnames = argnames.var
+        argnames = kwargs_keys.var
         args, kwargs_list = args[: -len(argnames)], args[-len(argnames) :]
         kwargs = dict(zip(argnames, kwargs_list))
         assert len(kwargs) == len(argnames)
@@ -556,7 +559,7 @@ class InlinePyEval(PyEvalBase):
         code: types.CodeType,
         symbolic_locals: OrderedDict[str, Any],
         symbolic_globals: OrderedDict[str, Any],
-        func: VariableBase,
+        func: CallableVariable,
     ):
         f_globals = func.var.__globals__
         f_builtins = f_globals['__builtins__']
@@ -581,7 +584,7 @@ class InlinePyEval(PyEvalBase):
     def inline_call(
         cls,
         parent: PyEvalBase,
-        func: VariableBase,
+        func: CallableVariable,
         args: list[VariableBase],
         kwargs: dict[str, VariableBase],
     ):
@@ -652,10 +655,19 @@ class PyEval(PyEvalBase):
         vars = list(code_options["co_varnames"])
         for k in vars:
             if k in frame.f_locals:
-                self.symbolic_locals[k] = VariableBase(
-                    var=frame.f_locals[k],
-                    source=LocalSource(k),
-                )
+                value = frame.f_locals[k]
+                # TODO: implement VariableFactory
+                print(value, type(value))
+                if isinstance(value, (types.FunctionType)):
+                    self.symbolic_locals[k] = CallableVariable(
+                        fn=value,
+                        source=LocalSource(k),
+                    )
+                else:
+                    self.symbolic_locals[k] = VariableBase(
+                        var=value,
+                        source=LocalSource(k),
+                    )
 
         # TODO: rm hardcode
         # create inputs

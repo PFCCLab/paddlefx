@@ -7,6 +7,7 @@ import types
 from typing import Callable
 
 from ._eval_frame import set_eval_frame
+from .compiler import CompilerBase
 from .convert_frame import convert_frame
 
 
@@ -44,12 +45,12 @@ def disable(fn=None):
     return DisableContext()(fn)
 
 
-def optimize(backend: Callable):
+def optimize(backend: Callable = CompilerBase()):
     def _fn(backend: Callable):
         def __fn(frame: types.FrameType):
             try:
-                result = convert_frame(frame, backend)
-                return result
+                guarded_code = convert_frame(frame, backend)
+                return guarded_code
             except NotImplementedError as e:
                 logging.debug(f"!! NotImplementedError: {e}")
             except Exception:

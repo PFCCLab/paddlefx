@@ -4,7 +4,6 @@ import itertools
 
 from typing import TYPE_CHECKING, Any
 
-from ..proxy import Proxy
 from ..source import LocalSource, Source
 
 _sym_var_id_counter = itertools.count()
@@ -18,14 +17,11 @@ class VariableBase:
         self,
         *,
         var: Any = None,
-        vtype: Any = None,
         tx: PyEvalBase | None = None,
         source: Source | None = None,
         node: Any = None,
     ) -> None:
-        # TODO: remove var and vtype
         self.var = var
-        self.vtype = vtype if var is None else type(var)
         self.tx = tx
         self.source = source
         self.node = node
@@ -39,7 +35,7 @@ class VariableBase:
         elif self.node is not None:
             return self.node.name
 
-        return f"VariableBase({self.vtype}, {self.id})"
+        return f"{self.__class__.__name__}({self.id})"
 
     def __repr__(self) -> str:
         if self.source is not None and isinstance(self.source, LocalSource):
@@ -50,16 +46,19 @@ class VariableBase:
         elif self.var is not None:
             return str(self.var)
 
-        return f"VariableBase({self.vtype}, {self.id})"
+        return f"{self.__class__.__name__}({self.id})"
 
 
 class ObjectVariable(VariableBase):
-    def __init__(self, obj):
-        super().__init__()
-        self.obj = obj
-
-    def __str__(self):
-        return str(self.obj)
+    def __init__(
+        self,
+        obj,
+        *,
+        tx: PyEvalBase | None = None,
+        source: Source | None = None,
+        node: Any = None,
+    ):
+        super().__init__(var=obj, tx=tx, source=source, node=node)
 
     def call_function(
         self,
@@ -89,26 +88,16 @@ class ObjectVariable(VariableBase):
         )
 
 
-# class BuiltinVariable(CallableVariable):
-#     def call_print(
-#         self,
-#         translator,
-#         *args: tuple[VariableBase],
-#         **kwargs: dict[str, VariableBase],
-#     ) -> ConstantVariable:
-#         return ConstantVariable(None)
-
-#     def call_getattr(
-#         self, translator, obj: ObjectVariable, name: str
-#     ) -> ObjectVariable:
-#         return ObjectVariable(
-#             translator.output.create_node("call_method", "__getattr__", [obj, name])
-#         )
-
-
 class LayerVariable(ObjectVariable):
-    def __init__(self, target: str):
-        super().__init__(target)
+    def __init__(
+        self,
+        target: str,
+        *,
+        tx: PyEvalBase | None = None,
+        source: Source | None = None,
+        node: Any = None,
+    ):
+        super().__init__(target, tx=tx, source=source, node=node)
         # TODO: those are used to generate code
         self.args = []
         self.kwargs = {}
@@ -116,7 +105,7 @@ class LayerVariable(ObjectVariable):
     def __str__(self):
         args = ", ".join(self.args)
         kwargs = ", ".join(self.kwargs)
-        return f"{self.obj}({args}, {kwargs})"
+        return f"{self.var}({args}, {kwargs})"
 
     def call_function(
         self,
@@ -126,12 +115,16 @@ class LayerVariable(ObjectVariable):
     ) -> VariableBase:
         self.args = [str(a) for a in args]
         self.kwargs = [f"k{k}={v}" for k, v in kwargs.items()]
-        return translator.output.create_node("call_module", self.obj, args, kwargs)
+        return translator.output.create_node("call_module", self.var, args, kwargs)
 
 
 class TensorVariable(ObjectVariable):
-    def __init__(self, proxy: Proxy):
-        super().__init__(proxy)
-
-    def as_proxy(self) -> Proxy:
-        return self.obj
+    def __init__(
+        self,
+        tensor,
+        *,
+        tx: PyEvalBase | None = None,
+        source: Source | None = None,
+        node: Any = None,
+    ):
+        super().__init__(tensor, tx=tx, source=source, node=node)
