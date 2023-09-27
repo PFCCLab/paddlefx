@@ -25,17 +25,21 @@ class CompilerBase:
         try:
             for node in gl.graph.nodes:
                 getattr(self, f"compile_{node.op}")(node, symbol_table, inputs)
-            return self.gen_compiled_func(symbol_table, inputs)
+            return self.gen_compiled_func(symbol_table, gl, inputs)
         except AttributeError as e:
             print(f"AttributeError when compiling graph: {e}")
             return gl.forward
 
-    def gen_compiled_func(self, symbol_table: dict, inputs: list):
+    def gen_compiled_func(
+        self, symbol_table: dict, gl: paddlefx.GraphLayer, inputs: list
+    ):
         raise NotImplementedError("CompilerBase is a abstract class")
 
 
 class TVMCompiler(CompilerBase):
-    def gen_compiled_func(self, symbol_table: dict, inputs: list):
+    def gen_compiled_func(
+        self, symbol_table: dict, gl: paddlefx.GraphLayer, inputs: list
+    ):
         tgt = tvm.target.Target(target="llvm", host="llvm")
         s = te.create_schedule(symbol_table["output"].op)
         tvm_func = tvm.build(s, tuple(symbol_table.values())[:3], tgt, name="myadd")
@@ -45,7 +49,7 @@ class TVMCompiler(CompilerBase):
             output = tvm.nd.array(args[0].numpy())
             tvm_func(*inputs, output)
             output = paddle.to_tensor(output.asnumpy())
-            return output
+            return (output,)
 
         return compiled_func
 
