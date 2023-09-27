@@ -22,7 +22,7 @@ class Node:
 
         # Currently, we do not support directly set the args and kwargs of a Node.
         # Please use `_update_args_kwargs` instead.
-        self.args = ()
+        self.args: tuple = ()
         self.kwargs = {}
         self._update_args_kwargs(args, kwargs)
         # Is a dict to act as an "ordered set". Keys are significant, value dont-care
