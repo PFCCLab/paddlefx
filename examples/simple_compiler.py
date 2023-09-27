@@ -16,7 +16,7 @@ def add(x, y):
     return x + y
 
 
-optimized_net = paddlefx.optimize(TVMCompiler(print_tabular=True))(add)
+optimized_net = paddlefx.optimize(add, backend=TVMCompiler(print_tabular=True))
 
 x = paddle.rand([1, 224])
 out = add(x, x)
