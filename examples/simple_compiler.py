@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 import numpy as np
 import paddle
 import paddle.nn
@@ -9,16 +7,16 @@ import paddle.tensor
 
 import paddlefx
 
-from paddlefx.compiler import CompilerBase
+from paddlefx.compiler import TVMCompiler
 
-logging.getLogger().setLevel(logging.DEBUG)
+# logging.getLogger().setLevel(logging.DEBUG)
 
 
 def add(x, y):
     return x + y
 
 
-optimized_net = paddlefx.optimize(CompilerBase(print_tabular=True))(add)
+optimized_net = paddlefx.optimize(TVMCompiler(print_tabular=True))(add)
 
 x = paddle.rand([1, 224])
 out = add(x, x)
