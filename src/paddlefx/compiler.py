@@ -44,10 +44,7 @@ class TVMCompiler(CompilerBase):
             inputs = [tvm.nd.array(arg.numpy()) for arg in args]
             output = tvm.nd.array(args[0].numpy())
             tvm_func(*inputs, output)
-            shape = output.shape
-            print(shape)
-            output = paddle.to_tensor(output.asnumpy()).reshape(shape)
-            print(output.shape)
+            output = paddle.to_tensor(output.asnumpy())
             return output
 
         return compiled_func
