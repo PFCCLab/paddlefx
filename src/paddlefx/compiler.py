@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import paddle
-import tvm
-import tvm.testing
-
-from tvm import te
 
 import paddlefx
+
+if TYPE_CHECKING:
+    from tvm import te
 
 
 def paddle_dtype_to_str(dtype: paddle.dtype) -> str:
@@ -57,6 +56,10 @@ class CompilerBase:
 
 class TVMCompiler(CompilerBase):
     def gen_compiled_func(self, symbol_table: dict[str, te.Tensor], dummy_outputs: Any):
+        import tvm
+
+        from tvm import te
+
         tgt = tvm.target.Target(target="llvm", host="llvm")
         schedule = te.create_schedule(symbol_table["output"].op)
         tvm_func = tvm.build(
@@ -85,6 +88,8 @@ class TVMCompiler(CompilerBase):
     def compile_placeholder(
         self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
     ):
+        from tvm import te
+
         symbol_table[node.name] = te.placeholder(
             inputs[self.input_index].shape,
             paddle_dtype_to_str(inputs[self.input_index].dtype),
@@ -95,6 +100,8 @@ class TVMCompiler(CompilerBase):
     def compile_call_function(
         self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
     ):
+        from tvm import te
+
         if node.target.__name__ in ["add", "sub", "mul", "div"]:
             left = symbol_table[str(node.args[0])]
             right = symbol_table[str(node.args[1])]
