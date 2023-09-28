@@ -35,6 +35,24 @@ if TYPE_CHECKING:
     pass
 
 
+def tos_op_wrapper(fn: Callable):
+    """A decorator function that wraps an opcode operation and applies certain functionality to it.
+
+    Args:
+        fn: The opcode operation to be wrapped.
+
+    Returns:
+        The wrapped opcode operation.
+    """
+    nargs = len(inspect.signature(fn).parameters)
+
+    def inner(self: PyEvalBase, instr: Instruction):
+        args = self.stack.pop_n(nargs)
+        self.call_function(CallableVariable(fn), args, {})
+
+    return inner
+
+
 def break_graph_if_unsupported(*, push: int):
     def decorator(inner_fn):
         @functools.wraps(inner_fn)
@@ -259,38 +277,32 @@ class PyEvalBase:
     # def DUP_TOP_TWO(self, inst: Instruction):
 
     # def NOP(self, inst: Instruction):
-    # def UNARY_POSITIVE(self, inst: Instruction):
-    # def UNARY_NEGATIVE(self, inst: Instruction):
-    # def UNARY_NOT(self, inst: Instruction):
-
-    # def UNARY_INVERT(self, inst: Instruction):
 
     # def BINARY_MATRIX_MULTIPLY(self, inst: Instruction):
     # def INPLACE_MATRIX_MULTIPLY(self, inst: Instruction):
 
-    # def BINARY_POWER(self, inst: Instruction):
-    # def BINARY_MULTIPLY(self, inst: Instruction):
+    # unary operators
+    UNARY_POSITIVE = tos_op_wrapper(operator.pos)
+    UNARY_NEGATIVE = tos_op_wrapper(operator.neg)
+    UNARY_NOT = tos_op_wrapper(operator.not_)
+    UNARY_INVERT = tos_op_wrapper(operator.invert)
 
-    # def BINARY_MODULO(self, inst: Instruction):
-
-    def BINARY_ADD(self, inst: Instruction):
-        fn = operator.add
-        nargs = len(inspect.signature(fn).parameters)
-        args = self.stack.pop_n(nargs)
-        assert type(args[0]) == type(args[1]), f"{type(args[0])} != {type(args[1])}"
-        self.call_function(CallableVariable(fn), args, {})
-
-    def BINARY_SUBTRACT(self, inst: Instruction):
-        fn = operator.sub
-
-        nargs = len(inspect.signature(fn).parameters)
-        args = self.stack.pop_n(nargs)
-        assert type(args[0]) == type(args[1])
-        self.call_function(CallableVariable(fn), args, {})
+    # binary operators
+    BINARY_POWER = tos_op_wrapper(operator.pow)
+    BINARY_MULTIPLY = tos_op_wrapper(operator.mul)
+    BINARY_MATRIX_MULTIPLY = tos_op_wrapper(operator.matmul)
+    BINARY_FLOOR_DIVIDE = tos_op_wrapper(operator.floordiv)
+    BINARY_TRUE_DIVIDE = tos_op_wrapper(operator.truediv)
+    BINARY_MODULO = tos_op_wrapper(operator.mod)
+    BINARY_ADD = tos_op_wrapper(operator.add)
+    BINARY_SUBTRACT = tos_op_wrapper(operator.sub)
+    BINARY_LSHIFT = tos_op_wrapper(operator.lshift)
+    BINARY_RSHIFT = tos_op_wrapper(operator.rshift)
+    BINARY_AND = tos_op_wrapper(operator.and_)
+    BINARY_OR = tos_op_wrapper(operator.or_)
+    BINARY_XOR = tos_op_wrapper(operator.xor)
 
     # def BINARY_SUBSCR(self, inst: Instruction):
-    # def BINARY_FLOOR_DIVIDE(self, inst: Instruction):
-    # def BINARY_TRUE_DIVIDE(self, inst: Instruction):
     # def INPLACE_FLOOR_DIVIDE(self, inst: Instruction):
     # def INPLACE_TRUE_DIVIDE(self, inst: Instruction):
 
@@ -313,11 +325,6 @@ class PyEvalBase:
     # def INPLACE_MODULO(self, inst: Instruction):
     # def STORE_SUBSCR(self, inst: Instruction):
     # def DELETE_SUBSCR(self, inst: Instruction):
-    # def BINARY_LSHIFT(self, inst: Instruction):
-    # def BINARY_RSHIFT(self, inst: Instruction):
-    # def BINARY_AND(self, inst: Instruction):
-    # def BINARY_XOR(self, inst: Instruction):
-    # def BINARY_OR(self, inst: Instruction):
     # def INPLACE_POWER(self, inst: Instruction):
     # def GET_ITER(self, inst: Instruction):
     # def GET_YIELD_FROM_ITER(self, inst: Instruction):
@@ -658,7 +665,7 @@ class PyEval(PyEvalBase):
             if k in frame.f_locals:
                 value = frame.f_locals[k]
                 # TODO: implement VariableFactory
-                if isinstance(value, (types.FunctionType)):
+                if isinstance(value, (types.FunctionType, types.LambdaType)):
                     self.symbolic_locals[k] = CallableVariable(
                         fn=value,
                         source=LocalSource(k),

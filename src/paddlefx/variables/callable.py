@@ -36,13 +36,13 @@ class CallableVariable(VariableBase):
                 name = repr(self.var)
         return f"{self.__class__.__name__}({name})"
 
-    def __call__(self, tx: PyEvalBase, *args: VariableBase, **kwargs) -> Any:
+    def __call__(self, tx: PyEvalBase, *args: VariableBase, **kwargs) -> VariableBase:
         # TODO: better org
         fn = self.var
         graph = tx.output.graph
 
         # nn.layer
-        if isinstance(fn, paddle.nn.Layer):
+        if isinstance(fn, paddle.nn.Layer):  # type: ignore
             # unroll nn.Sequential
             if 'container' in fn.__module__:
                 assert not kwargs
