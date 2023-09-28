@@ -27,6 +27,7 @@ def func_add(a, b):
 
 
 def test_add():
+    # NOTE: now only support 1x224 tensor
     in_a = paddle.rand([1, 224])
     in_b = paddle.rand([1, 224])
     np.testing.assert_allclose(add(in_a, in_b), in_a + in_b)
