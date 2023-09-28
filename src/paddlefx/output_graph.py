@@ -12,8 +12,10 @@ from .bytecode_transformation import Instruction, create_instruction
 from .codegen import PyCodegen
 from .graph import Graph
 from .graph_layer import GraphLayer
+from .node import Node
 from .source import LocalSource
 from .utils import format_instruction, log_code, log_instructions
+from .variables.builder import GraphArg
 
 if TYPE_CHECKING:
     from .pyeval import PyEval, PyEvalBase
@@ -38,21 +40,32 @@ class OutputGraph:
         self.root_tx = root_tx
 
         self.graph = Graph()
-        self.graphargs = []
 
         self.should_exit = False
+
+    @property
+    def placeholders(self) -> list[Node]:
+        r = []
+        for node in self.graph.nodes:
+            if node.op == "placeholder":
+                r.append(node)
+                continue
+            break
+        return r
+
+    @property
+    def graphargs(self) -> list[GraphArg]:
+        return [node.meta["grapharg"] for node in self.placeholders]
 
     def add_output_instructions(self, insts: list[Instruction]) -> None:
         self.instructions.extend(insts)
         self.should_exit = True
 
     def example_inputs(self) -> list[paddle.Tensor]:
-        # result = []
-        # for arg in self.graphargs:
-        #     result.extend(arg.get_examples())
-        # return result
-        # TODO: support GraphArg class
-        return [paddle.rand([1, 224]), paddle.rand([1, 224])]
+        result = []
+        for arg in self.graphargs:
+            result.extend(arg.get_examples())
+        return result
 
     def apply_compiler(self, tx: PyEvalBase, rv: list[VariableBase], root):
         from .eval_frame import disable
