@@ -29,7 +29,7 @@ class OutputGraph:
         self,
         frame: types.FrameType,
         code_options: dict,
-        compiler_fn: Callable,
+        compiler_fn: Callable[[GraphLayer, list[paddle.Tensor]], Callable],
         root_tx: PyEval,
     ):
         self.instructions: list[Instruction] = []
@@ -38,12 +38,21 @@ class OutputGraph:
         self.root_tx = root_tx
 
         self.graph = Graph()
+        self.graphargs = []
 
         self.should_exit = False
 
     def add_output_instructions(self, insts: list[Instruction]) -> None:
         self.instructions.extend(insts)
         self.should_exit = True
+
+    def example_inputs(self) -> list[paddle.Tensor]:
+        # result = []
+        # for arg in self.graphargs:
+        #     result.extend(arg.get_examples())
+        # return result
+        # TODO: support GraphArg class
+        return [paddle.rand([1, 224]), paddle.rand([1, 224])]
 
     def apply_compiler(self, tx: PyEvalBase, rv: list[VariableBase], root):
         from .eval_frame import disable
@@ -54,9 +63,7 @@ class OutputGraph:
 
         compiled_fn_name = f"__compiled_fn_{next(_compiled_fn_counter)}"
         # TODO: add inputs
-        compiled_fn = self.compiler_fn(
-            gl, [paddle.rand([1, 224]), paddle.rand([1, 224])]
-        )
+        compiled_fn = self.compiler_fn(gl, self.example_inputs())
         log_code(
             compiled_fn.__code__,
             f"COMPILED_FN {compiled_fn_name}",

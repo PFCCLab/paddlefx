@@ -28,7 +28,7 @@ def paddle_dtype_to_str(dtype: paddle.dtype) -> str:
 
 
 class CompilerBase:
-    def __init__(self, *, print_tabular: bool = False):
+    def __init__(self, *, print_tabular: bool = True):
         self.print_tabular = print_tabular
         self.input_index = 0
 
