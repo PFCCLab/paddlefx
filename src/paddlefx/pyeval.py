@@ -25,7 +25,7 @@ from .codegen import PyCodegen
 from .output_graph import OutputGraph
 from .paddle_utils import TensorType
 from .source import LocalSource
-from .utils import format_instruction, log_code
+from .utils import BreakGraphError, format_instruction, log_code
 from .variable_stack import VariableStack
 from .variables import CallableVariable, TupleVariable, VariableBase
 from .variables.base import TensorVariable
@@ -49,7 +49,7 @@ def tos_op_wrapper(fn: Callable):
 
     def inner(self: PyEvalBase, instr: Instruction):
         args = self.stack.pop_n(nargs)
-        self.call_function(CallableVariable(fn), args, {})
+        self.call_function(CallableVariable(fn, tx=self), args, {})
 
     return inner
 
@@ -61,7 +61,8 @@ def break_graph_if_unsupported(*, push: int):
             state = self.get_state()
             try:
                 return inner_fn(self, inst)
-            except NotImplementedError as excp:
+            except (BreakGraphError, NotImplementedError) as e:
+                # TODO: remove NotImplementedError
                 logging.debug(
                     f"break_graph_if_unsupported triggered compile", exc_info=True
                 )
@@ -146,7 +147,7 @@ class PyEvalBase:
         return PyEvalState(
             # self.output.get_state(),
             copy.copy(self.symbolic_locals),
-            copy.copy(self.stack),
+            self.stack.copy(),
             self.instruction_pointer,
             self.current_instruction,
             self.next_instruction,
@@ -318,7 +319,7 @@ class PyEvalBase:
         nargs = len(inspect.signature(fn).parameters)
         args = self.stack.pop_n(nargs)
         assert type(args[0]) == type(args[1])
-        self.call_function(CallableVariable(fn), args, {})
+        self.call_function(CallableVariable(fn, tx=self), args, {})
 
     # def INPLACE_SUBTRACT(self, inst: Instruction):
     # def INPLACE_MULTIPLY(self, inst: Instruction):
@@ -382,7 +383,7 @@ class PyEvalBase:
 
         owner = self.stack.pop()
         self.call_function(
-            CallableVariable(fn),
+            CallableVariable(fn, tx=self),
             [owner, VariableBase(var=inst.argval)],
             {},
             count_call=False,
@@ -403,7 +404,7 @@ class PyEvalBase:
             raise NotImplementedError(f"{inst.opname} {inst.argval}")
         op = comparison_ops[inst.argval]
         left, right = self.stack.pop_n(2)
-        self.call_function(CallableVariable(op), [left, right], {})
+        self.call_function(CallableVariable(op, tx=self), [left, right], {})
 
     def IS_OP(self, inst):
         assert inst.argval == 0 or inst.argval == 1
@@ -485,7 +486,7 @@ class PyEvalBase:
         else:
             raise Exception(f"name '{name}' is not found")
         if isinstance(var, (types.FunctionType, types.BuiltinFunctionType)):
-            self.stack.push(CallableVariable(fn=var))
+            self.stack.push(CallableVariable(var, tx=self))
         else:
             self.stack.push(VariableBase(var=var))
 

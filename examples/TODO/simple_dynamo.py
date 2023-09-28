@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import paddle
 import paddle.nn
 
 import paddlefx
+
+logging.getLogger().setLevel(logging.DEBUG)
 
 
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):

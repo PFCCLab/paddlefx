@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import paddle
 
 from ..source import Source
+from ..utils import BreakGraphError
 from .base import ObjectVariable, TensorVariable, VariableBase
 
 if TYPE_CHECKING:
@@ -58,7 +59,9 @@ class CallableVariable(VariableBase):
             elif not fn.__module__.startswith('paddle.nn'):
                 globals()['self'] = tx.f_locals['self']
                 result = tx.inline_call_function(
-                    CallableVariable(fn=fn.forward.__func__), (self, *args), kwargs
+                    CallableVariable(fn=fn.forward.__func__, tx=tx),
+                    (self, *args),
+                    kwargs,
                 )
                 del globals()['self']
                 return result
@@ -82,7 +85,7 @@ class CallableVariable(VariableBase):
             return TensorVariable(None, node=output)
         elif inspect.isbuiltin(fn):
             if fn is print:
-                raise NotImplementedError("print() is not supported")
+                raise BreakGraphError("print is triggered")
             elif fn is getattr:
                 object, name = args
                 attr = getattr(object.var, name.var)
@@ -91,10 +94,10 @@ class CallableVariable(VariableBase):
                         # For method variables
                         ot = type(args[0].var)
                         obj_cls = type(args[0])
-                        return CallableVariable(fn=attr)
+                        return CallableVariable(fn, tx=tx)
                     else:
                         # the attr could be callable function
-                        return CallableVariable(fn=attr)
+                        return CallableVariable(fn, tx=tx)
                 else:
                     return VariableBase(var=attr)
             elif fn in [
