@@ -14,14 +14,14 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
     return gl.forward
 
 
-@paddlefx.optimize(my_compiler)
+@paddlefx.optimize(backend=my_compiler)
 def add(a, b):
     print('\tcall add')
     c = a + b
     return c
 
 
-@paddlefx.optimize(my_compiler)
+@paddlefx.optimize(backend=my_compiler)
 def func(a, b):
     print('\tcall func')
     c = add(a, b)
@@ -52,7 +52,7 @@ def foo(a, b):
     return l
 
 
-optimized_foo = paddlefx.optimize(my_compiler)(foo)
+optimized_foo = paddlefx.optimize(backend=my_compiler)(foo)
 
 original_res = foo(in_a, in_b)
 optimized_res = optimized_foo(in_a, in_b)
@@ -75,7 +75,7 @@ def inplace(a, b):
     return a
 
 
-optimized_foo = paddlefx.optimize(my_compiler)(inplace)
+optimized_foo = paddlefx.optimize(backend=my_compiler)(inplace)
 
 original_res = inplace(in_a, in_b)
 optimized_res = optimized_foo(in_a, in_b)
@@ -96,7 +96,7 @@ class ExampleNet(paddle.nn.Layer):
 
 
 net = ExampleNet()
-optimized_func = paddlefx.optimize(my_compiler)(net)
+optimized_func = paddlefx.optimize(backend=my_compiler)(net)
 
 original_res = net(in_a, in_b)
 optimized_res = optimized_func(in_a, in_b)

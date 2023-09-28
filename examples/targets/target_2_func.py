@@ -27,7 +27,7 @@ def func(x, y):
     return z
 
 
-@paddlefx.optimize(my_compiler)
+@paddlefx.optimize(backend=my_compiler)
 def add(a, b):
     d = func(a, b)
     return d

@@ -28,7 +28,7 @@ def func(x, y):
     return o
 
 
-@paddlefx.optimize(my_compiler)
+@paddlefx.optimize(backend=my_compiler)
 def net(a, b):
     c = func(a, b)
     return c
