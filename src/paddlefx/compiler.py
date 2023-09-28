@@ -28,7 +28,8 @@ def paddle_dtype_to_str(dtype: paddle.dtype) -> str:
 
 
 class CompilerBase:
-    def __init__(self, *, print_tabular: bool = True):
+    def __init__(self, *, full_graph=False, print_tabular: bool = False):
+        self.full_graph = full_graph  # TODO: support full_graph
         self.print_tabular = print_tabular
         self.input_index = 0
 
@@ -116,5 +117,5 @@ class TVMCompiler(CompilerBase):
     def compile_output(
         self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
     ):
-        ret = symbol_table.get(str(node.args[0][0]))
+        ret = symbol_table[str(node.args[0][0])]
         symbol_table["output"] = ret

@@ -34,6 +34,6 @@ def test_add():
 
 
 def test_func_add():
-    in_a = paddle.rand([1, 224])
-    in_b = paddle.rand([1, 224])
+    in_a = paddle.rand([128, 224])
+    in_b = paddle.rand([128, 224])
     np.testing.assert_allclose(func_add(in_a, in_b), in_a + in_b)
