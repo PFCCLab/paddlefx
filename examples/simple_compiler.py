@@ -17,14 +17,15 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 
 def inner_func(x, y):
-    p = x + y
-    q = x / y
-    return p - q
+    p = paddle.add(x, y)
+    q = paddle._C_ops.subtract(x, y)
+    z = p * q
+    return z / y
 
 
-def func(x, y):
-    res = inner_func(x, y)
-    return res
+def func(a, b):
+    d = inner_func(a, b)
+    return d
 
 
 optimized_net = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))

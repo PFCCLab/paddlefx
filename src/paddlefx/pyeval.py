@@ -379,15 +379,9 @@ class PyEvalBase:
     # def BUILD_SET(self, inst: Instruction):
     # def BUILD_MAP(self, inst: Instruction):
     def LOAD_ATTR(self, inst: Instruction):
-        fn = getattr
-
+        # TODO: use AttributeVariable
         owner = self.stack.pop()
-        self.call_function(
-            CallableVariable(fn, tx=self),
-            [owner, VariableBase(var=inst.argval)],
-            {},
-            count_call=False,
-        )
+        self.stack.push(CallableVariable(getattr(owner.var, inst.argval), tx=self))
 
     def COMPARE_OP(self, inst: Instruction):
         comparison_ops = {
