@@ -11,6 +11,8 @@ import paddlefx
 
 from paddlefx.compiler import TVMCompiler
 
+paddle.seed(0)
+
 logging.getLogger().setLevel(logging.DEBUG)
 
 

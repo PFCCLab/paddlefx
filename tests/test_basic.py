@@ -8,6 +8,8 @@ import paddlefx
 
 from paddlefx.compiler import TVMCompiler
 
+paddle.seed(0)
+
 
 def add(x, y):
     z = x + y
