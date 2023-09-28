@@ -106,9 +106,33 @@ class TVMCompiler(CompilerBase):
         if node.target.__name__ in ["add", "sub", "mul", "div"]:
             left = symbol_table[str(node.args[0])]
             right = symbol_table[str(node.args[1])]
+
+            def fcompute(*indices):
+                left_indices = list(indices)
+                right_indices = list(indices)
+                assert len(left.shape) == len(
+                    right.shape
+                ), "left and right should have same rank"
+                for i in range(len(indices)):
+                    left_axis = left.shape[i]
+                    right_axis = right.shape[i]
+                    if left_axis != right_axis:
+                        if left_axis == 1:
+                            left_indices[i] = 0
+                        elif right_axis == 1:
+                            right_indices[i] = 0
+                        else:
+                            raise ValueError(
+                                f"left and right should have same shape, but get {left.shape} and {right.shape}"
+                            )
+
+                return node.target(
+                    left[tuple(left_indices)], right[tuple(right_indices)]
+                )
+
             symbol_table[str(node.name)] = te.compute(  # type: ignore
                 left.shape,
-                lambda *i: node.target(left[i], right[i]),
+                fcompute,
                 name=str(node.name),
             )
         else:
