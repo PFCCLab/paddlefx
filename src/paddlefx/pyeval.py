@@ -29,6 +29,7 @@ from .utils import format_instruction, log_code
 from .variable_stack import VariableStack
 from .variables import CallableVariable, TupleVariable, VariableBase
 from .variables.base import TensorVariable
+from .variables.builder import GraphArg
 
 if TYPE_CHECKING:
     # import opcode
@@ -689,7 +690,8 @@ class PyEval(PyEvalBase):
                 and not var.source.local_name.startswith("___stack")
                 and var.source.local_name not in ['self']
             ):
-                self.output.graph.placeholder(var.source.local_name)
+                node = self.output.graph.placeholder(var.source.local_name)
+                node.meta["grapharg"] = GraphArg(example=var.var)
 
     def create_call_resume_at(self, inst: Instruction | None) -> list[Instruction]:
         assert inst is not None
