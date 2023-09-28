@@ -9,31 +9,37 @@ import paddlefx
 from paddlefx.compiler import TVMCompiler
 
 
-@paddlefx.optimize(backend=TVMCompiler())
 def add(x, y):
     z = x + y
     return z
 
 
-def func(x, y):
-    z = x + y
-    return z
+def inner_func(x, y):
+    p = x + y
+    q = x - y
+    z = p * x
+    return z / y
 
 
-@paddlefx.optimize(backend=TVMCompiler())
-def func_add(a, b):
-    d = func(a, b)
+def func(a, b):
+    d = inner_func(a, b)
     return d
 
 
+def check_func(func, *args):
+    comiled_func = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
+    out = func(*args)
+    res = comiled_func(*args)
+    np.testing.assert_allclose(res, out)
+
+
 def test_add():
-    # NOTE: now only support 1x224 tensor
     in_a = paddle.rand([1, 224])
     in_b = paddle.rand([1, 224])
-    np.testing.assert_allclose(add(in_a, in_b), in_a + in_b)
+    check_func(add, in_a, in_b)
 
 
 def test_func_add():
-    in_a = paddle.rand([128, 224])
-    in_b = paddle.rand([128, 224])
-    np.testing.assert_allclose(func_add(in_a, in_b), in_a + in_b)
+    in_a = paddle.rand([8, 8, 16])
+    in_b = paddle.rand([8, 8, 16])
+    check_func(func, in_a, in_b)

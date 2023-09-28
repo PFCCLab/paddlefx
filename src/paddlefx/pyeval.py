@@ -194,8 +194,8 @@ class PyEvalBase:
             if self.checkpoint is None:
                 raise
             logging.debug(f"!! NotImplementedError: {e}")
-        except Exception:
-            raise
+        except Exception as e:
+            raise e
 
         # fallback
         logging.debug(f"graph break from instruction: \n{format_instruction(inst)}")

@@ -97,7 +97,13 @@ class CallableVariable(VariableBase):
                         return CallableVariable(fn=attr)
                 else:
                     return VariableBase(var=attr)
-            elif fn in [operator.add, operator.sub, operator.iadd]:
+            elif fn in [
+                operator.add,
+                operator.sub,
+                operator.mul,
+                operator.truediv,
+                operator.iadd,
+            ]:
                 ot = type(args[0].var)
                 obj_cls = type(args[0])
                 output = graph.call_function(fn, args, kwargs, ot)
