@@ -15,9 +15,9 @@ def add(x, y):
 
 
 def inner_func(x, y):
-    p = x + y
-    q = x - y
-    z = p * x
+    p = paddle.add(x, y)
+    q = paddle._C_ops.subtract(x, y)
+    z = p * q
     return z / y
 
 

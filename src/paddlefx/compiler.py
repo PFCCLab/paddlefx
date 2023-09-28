@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import operator
+
 from typing import TYPE_CHECKING, Any, Callable
 
 import paddle
@@ -103,9 +105,14 @@ class TVMCompiler(CompilerBase):
     ):
         from tvm import te
 
-        if node.target.__name__ in ["add", "sub", "mul", "div"]:
+        target_name = node.target.__name__
+        if target_name in ["subtract"]:
+            target_name = "sub"
+
+        if target_name in ["add", "sub", "mul", "truediv"]:
             left = symbol_table[str(node.args[0])]
             right = symbol_table[str(node.args[1])]
+            operator_func = getattr(operator, target_name)
 
             def fcompute(*indices):
                 left_indices = list(indices)
@@ -126,7 +133,7 @@ class TVMCompiler(CompilerBase):
                                 f"left and right should have same shape, but get {left.shape} and {right.shape}"
                             )
 
-                return node.target(
+                return operator_func(
                     left[tuple(left_indices)], right[tuple(right_indices)]
                 )
 
@@ -136,7 +143,7 @@ class TVMCompiler(CompilerBase):
                 name=str(node.name),
             )
         else:
-            raise NotImplementedError(f"Unsupported function: {node.target.__name__}")
+            raise NotImplementedError(f"Unsupported function: {target_name}")
 
     def compile_output(
         self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list

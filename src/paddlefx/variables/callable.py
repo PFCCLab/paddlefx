@@ -79,7 +79,7 @@ class CallableVariable(VariableBase):
             ot = type(args[0].var)
             obj_cls = type(args[0])
             output = graph.call_function(fn, args, kwargs, ot)
-            return obj_cls(node=output)
+            return TensorVariable(None, node=output)
         elif inspect.isbuiltin(fn):
             if fn is print:
                 raise NotImplementedError("print() is not supported")
