@@ -33,17 +33,17 @@ class CompilerBase:
         self.print_tabular = print_tabular
         self.input_index = 0
 
-    def __call__(self, gl: paddlefx.GraphLayer, dummy_inputs: list):
+    def __call__(self, gl: paddlefx.GraphLayer, example_inputs: list):
         if self.print_tabular:
             gl.graph.print_tabular()
-        return self.compile(gl, dummy_inputs)
+        return self.compile(gl, example_inputs)
 
-    def compile(self, gl: paddlefx.GraphLayer, dummy_inputs: list) -> Callable:
-        dummy_outputs = gl.forward(*dummy_inputs)
+    def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
+        dummy_outputs = gl.forward(*example_inputs)
         symbol_table: dict[str, Any] = {}
         try:
             for node in gl.graph.nodes:
-                getattr(self, f"compile_{node.op}")(node, symbol_table, dummy_inputs)
+                getattr(self, f"compile_{node.op}")(node, symbol_table, example_inputs)
             self.input_index = 0
             return self.gen_compiled_func(symbol_table, dummy_outputs)
         except (AttributeError, NotImplementedError) as e:
