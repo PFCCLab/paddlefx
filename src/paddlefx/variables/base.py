@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 
+from queue import Queue
 from typing import TYPE_CHECKING, Any
 
 from ..source import LocalSource, Source
@@ -10,6 +11,37 @@ _sym_var_id_counter = itertools.count()
 
 if TYPE_CHECKING:
     from ..pyeval import PyEvalBase
+
+
+def find_traceable_vars(
+    root_vars: list[VariableBase],
+) -> list[VariableBase]:
+    """This function is used to find all traceable variables in the given list of variables.
+
+    Args:
+        root_vars (list[VariableBase]): A list of root variables from which the ordering starts.
+
+    Returns:
+        list[VariableBase]: A list of variables that are traceable.
+    """
+    results: list[VariableBase] = []
+    visited: set[VariableBase] = set()
+    queue: Queue[VariableBase] = Queue()
+
+    for root in root_vars:
+        queue.put(root)
+
+    while not queue.empty():
+        var = queue.get()
+        if var in visited:
+            continue
+
+        visited.add(var)
+        if var.source is not None and var.source.need_guard():
+            results.append(var)
+            continue
+
+    return results
 
 
 class VariableBase:

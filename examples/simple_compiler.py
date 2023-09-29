@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 import numpy as np
 import paddle
 import paddle.nn
@@ -13,7 +11,7 @@ from paddlefx.compiler import TVMCompiler
 
 paddle.seed(0)
 
-logging.getLogger().setLevel(logging.DEBUG)
+# logging.getLogger().setLevel(logging.DEBUG)
 
 
 def inner_func(x, y):
@@ -25,14 +23,19 @@ def inner_func(x, y):
 
 def func(a, b):
     d = inner_func(a, b)
+    d = inner_func(a, d)
+    d = inner_func(d, a)
+    d = inner_func(a, d)
     return d
 
 
-optimized_net = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
+optimized_func = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
 
-x = paddle.rand([1, 224])
-y = paddle.rand([1, 224])
-out = func(x, y)
-res = optimized_net(x, y)
+x = paddle.rand([4, 6, 1])
+y = paddle.rand([4, 6, 224])
+for _ in range(10):
+    out = func(y, x)
+    res = optimized_func(x, y)
+    res = optimized_func(y, x)
 
-np.testing.assert_equal(res.numpy(), out.numpy())
+    np.testing.assert_equal(res.numpy(), out.numpy())

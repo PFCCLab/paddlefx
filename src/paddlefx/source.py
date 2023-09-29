@@ -7,6 +7,13 @@ class Source:
     def name(self) -> str:
         raise NotImplementedError()
 
+    def is_traceable(self) -> bool:
+        raise NotImplementedError()
+
+    def need_guard(self) -> bool:
+        # TODO(zrr1999): implement is_traceable
+        return True
+
 
 @dataclasses.dataclass(frozen=True)
 class LocalSource(Source):
