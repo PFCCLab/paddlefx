@@ -45,7 +45,9 @@ def disable(fn=None):
     return DisableContext()(fn)
 
 
-def optimize(backend: Callable = CompilerBase()):
+def optimize(
+    model: Callable | None = None, *, backend: Callable = CompilerBase()
+) -> Callable:
     def _fn(backend: Callable):
         def __fn(frame: types.FrameType):
             try:
@@ -59,4 +61,8 @@ def optimize(backend: Callable = CompilerBase()):
 
         return __fn
 
-    return BaseContext(_fn(backend))
+    ctx = BaseContext(_fn(backend))
+    if model is None:
+        return ctx
+    else:
+        return ctx(model)

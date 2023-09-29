@@ -6,31 +6,40 @@ import paddle.nn
 
 import paddlefx
 
+paddle.seed(0)
 
-@paddlefx.optimize()
+
 def add(x, y):
     z = x + y
     return z
 
 
-def func(x, y):
-    z = x + y
-    return z
+def inner_func(x, y):
+    p = paddle.add(x, y)
+    q = paddle._C_ops.subtract(x, y)
+    z = p * q
+    return z / y
 
 
-@paddlefx.optimize()
-def func_add(a, b):
-    d = func(a, b)
+def func(a, b):
+    d = inner_func(a, b)
     return d
 
 
+def check_func(func, *args):
+    comiled_func = paddlefx.optimize(func)
+    out = func(*args)
+    res = comiled_func(*args)
+    np.testing.assert_allclose(res, out)
+
+
 def test_add():
-    in_a = paddle.rand([1])
-    in_b = paddle.rand([1])
-    np.testing.assert_allclose(add(in_a, in_b), in_a + in_b)
+    in_a = paddle.rand([1, 224])
+    in_b = paddle.rand([1, 224])
+    check_func(add, in_a, in_b)
 
 
 def test_func_add():
-    in_a = paddle.rand([1])
-    in_b = paddle.rand([1])
-    np.testing.assert_allclose(func_add(in_a, in_b), in_a + in_b)
+    in_a = paddle.rand([8, 8, 16])
+    in_b = paddle.rand([8, 8, 16])
+    check_func(func, in_a, in_b)

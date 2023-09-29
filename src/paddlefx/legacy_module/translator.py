@@ -9,11 +9,11 @@ from typing import Any
 import paddle
 import paddle.nn
 
-from .bytecode_transformation import Instruction, create_instruction
-from .output_graph import OutputGraph
-from .proxy import Attribute, Proxy
-from .variable_stack import VariableStack
-from .variables.base import VariableBase
+from ..bytecode_transformation import Instruction, create_instruction
+from ..output_graph import OutputGraph
+from ..proxy import Attribute, Proxy
+from ..variable_stack import VariableStack
+from ..variables.base import VariableBase
 
 
 def _binary_constructor(op_name: str):

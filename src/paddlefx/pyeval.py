@@ -23,14 +23,35 @@ from .bytecode_transformation import (
 )
 from .codegen import PyCodegen
 from .output_graph import OutputGraph
+from .paddle_utils import TensorType
 from .source import LocalSource
-from .utils import format_instruction, log_code
+from .utils import BreakGraphError, format_instruction, log_code
 from .variable_stack import VariableStack
 from .variables import CallableVariable, TupleVariable, VariableBase
+from .variables.base import TensorVariable
+from .variables.builder import GraphArg
 
 if TYPE_CHECKING:
     # import opcode
     pass
+
+
+def tos_op_wrapper(fn: Callable):
+    """A decorator function that wraps an opcode operation and applies certain functionality to it.
+
+    Args:
+        fn: The opcode operation to be wrapped.
+
+    Returns:
+        The wrapped opcode operation.
+    """
+    nargs = len(inspect.signature(fn).parameters)
+
+    def inner(self: PyEvalBase, instr: Instruction):
+        args = self.stack.pop_n(nargs)
+        self.call_function(CallableVariable(fn, tx=self), args, {})
+
+    return inner
 
 
 def break_graph_if_unsupported(*, push: int):
@@ -40,7 +61,8 @@ def break_graph_if_unsupported(*, push: int):
             state = self.get_state()
             try:
                 return inner_fn(self, inst)
-            except NotImplementedError as excp:
+            except (BreakGraphError, NotImplementedError) as e:
+                # TODO: remove NotImplementedError
                 logging.debug(
                     f"break_graph_if_unsupported triggered compile", exc_info=True
                 )
@@ -125,7 +147,7 @@ class PyEvalBase:
         return PyEvalState(
             # self.output.get_state(),
             copy.copy(self.symbolic_locals),
-            copy.copy(self.stack),
+            self.stack.copy(),
             self.instruction_pointer,
             self.current_instruction,
             self.next_instruction,
@@ -173,8 +195,8 @@ class PyEvalBase:
             if self.checkpoint is None:
                 raise
             logging.debug(f"!! NotImplementedError: {e}")
-        except Exception:
-            raise
+        except Exception as e:
+            raise e
 
         # fallback
         logging.debug(f"graph break from instruction: \n{format_instruction(inst)}")
@@ -257,39 +279,32 @@ class PyEvalBase:
     # def DUP_TOP_TWO(self, inst: Instruction):
 
     # def NOP(self, inst: Instruction):
-    # def UNARY_POSITIVE(self, inst: Instruction):
-    # def UNARY_NEGATIVE(self, inst: Instruction):
-    # def UNARY_NOT(self, inst: Instruction):
-
-    # def UNARY_INVERT(self, inst: Instruction):
 
     # def BINARY_MATRIX_MULTIPLY(self, inst: Instruction):
     # def INPLACE_MATRIX_MULTIPLY(self, inst: Instruction):
 
-    # def BINARY_POWER(self, inst: Instruction):
-    # def BINARY_MULTIPLY(self, inst: Instruction):
+    # unary operators
+    UNARY_POSITIVE = tos_op_wrapper(operator.pos)
+    UNARY_NEGATIVE = tos_op_wrapper(operator.neg)
+    UNARY_NOT = tos_op_wrapper(operator.not_)
+    UNARY_INVERT = tos_op_wrapper(operator.invert)
 
-    # def BINARY_MODULO(self, inst: Instruction):
-
-    def BINARY_ADD(self, inst: Instruction):
-        fn = operator.add
-
-        nargs = len(inspect.signature(fn).parameters)
-        args = self.stack.pop_n(nargs)
-        assert type(args[0]) == type(args[1])
-        self.call_function(CallableVariable(fn), args, {})
-
-    def BINARY_SUBTRACT(self, inst: Instruction):
-        fn = operator.sub
-
-        nargs = len(inspect.signature(fn).parameters)
-        args = self.stack.pop_n(nargs)
-        assert type(args[0]) == type(args[1])
-        self.call_function(CallableVariable(fn), args, {})
+    # binary operators
+    BINARY_POWER = tos_op_wrapper(operator.pow)
+    BINARY_MULTIPLY = tos_op_wrapper(operator.mul)
+    BINARY_MATRIX_MULTIPLY = tos_op_wrapper(operator.matmul)
+    BINARY_FLOOR_DIVIDE = tos_op_wrapper(operator.floordiv)
+    BINARY_TRUE_DIVIDE = tos_op_wrapper(operator.truediv)
+    BINARY_MODULO = tos_op_wrapper(operator.mod)
+    BINARY_ADD = tos_op_wrapper(operator.add)
+    BINARY_SUBTRACT = tos_op_wrapper(operator.sub)
+    BINARY_LSHIFT = tos_op_wrapper(operator.lshift)
+    BINARY_RSHIFT = tos_op_wrapper(operator.rshift)
+    BINARY_AND = tos_op_wrapper(operator.and_)
+    BINARY_OR = tos_op_wrapper(operator.or_)
+    BINARY_XOR = tos_op_wrapper(operator.xor)
 
     # def BINARY_SUBSCR(self, inst: Instruction):
-    # def BINARY_FLOOR_DIVIDE(self, inst: Instruction):
-    # def BINARY_TRUE_DIVIDE(self, inst: Instruction):
     # def INPLACE_FLOOR_DIVIDE(self, inst: Instruction):
     # def INPLACE_TRUE_DIVIDE(self, inst: Instruction):
 
@@ -304,7 +319,7 @@ class PyEvalBase:
         nargs = len(inspect.signature(fn).parameters)
         args = self.stack.pop_n(nargs)
         assert type(args[0]) == type(args[1])
-        self.call_function(CallableVariable(fn), args, {})
+        self.call_function(CallableVariable(fn, tx=self), args, {})
 
     # def INPLACE_SUBTRACT(self, inst: Instruction):
     # def INPLACE_MULTIPLY(self, inst: Instruction):
@@ -312,11 +327,6 @@ class PyEvalBase:
     # def INPLACE_MODULO(self, inst: Instruction):
     # def STORE_SUBSCR(self, inst: Instruction):
     # def DELETE_SUBSCR(self, inst: Instruction):
-    # def BINARY_LSHIFT(self, inst: Instruction):
-    # def BINARY_RSHIFT(self, inst: Instruction):
-    # def BINARY_AND(self, inst: Instruction):
-    # def BINARY_XOR(self, inst: Instruction):
-    # def BINARY_OR(self, inst: Instruction):
     # def INPLACE_POWER(self, inst: Instruction):
     # def GET_ITER(self, inst: Instruction):
     # def GET_YIELD_FROM_ITER(self, inst: Instruction):
@@ -369,15 +379,9 @@ class PyEvalBase:
     # def BUILD_SET(self, inst: Instruction):
     # def BUILD_MAP(self, inst: Instruction):
     def LOAD_ATTR(self, inst: Instruction):
-        fn = getattr
-
+        # TODO: use AttributeVariable
         owner = self.stack.pop()
-        self.call_function(
-            CallableVariable(fn),
-            [owner, VariableBase(var=inst.argval)],
-            {},
-            count_call=False,
-        )
+        self.stack.push(CallableVariable(getattr(owner.var, inst.argval), tx=self))
 
     def COMPARE_OP(self, inst: Instruction):
         comparison_ops = {
@@ -394,7 +398,7 @@ class PyEvalBase:
             raise NotImplementedError(f"{inst.opname} {inst.argval}")
         op = comparison_ops[inst.argval]
         left, right = self.stack.pop_n(2)
-        self.call_function(CallableVariable(op), [left, right], {})
+        self.call_function(CallableVariable(op, tx=self), [left, right], {})
 
     def IS_OP(self, inst):
         assert inst.argval == 0 or inst.argval == 1
@@ -476,7 +480,7 @@ class PyEvalBase:
         else:
             raise Exception(f"name '{name}' is not found")
         if isinstance(var, (types.FunctionType, types.BuiltinFunctionType)):
-            self.stack.push(CallableVariable(fn=var))
+            self.stack.push(CallableVariable(var, tx=self))
         else:
             self.stack.push(VariableBase(var=var))
 
@@ -657,10 +661,14 @@ class PyEval(PyEvalBase):
             if k in frame.f_locals:
                 value = frame.f_locals[k]
                 # TODO: implement VariableFactory
-                print(value, type(value))
-                if isinstance(value, (types.FunctionType)):
+                if isinstance(value, (types.FunctionType, types.LambdaType)):
                     self.symbolic_locals[k] = CallableVariable(
                         fn=value,
+                        source=LocalSource(k),
+                    )
+                elif isinstance(value, TensorType):
+                    self.symbolic_locals[k] = TensorVariable(
+                        tensor=value,
                         source=LocalSource(k),
                     )
                 else:
@@ -677,7 +685,8 @@ class PyEval(PyEvalBase):
                 and not var.source.local_name.startswith("___stack")
                 and var.source.local_name not in ['self']
             ):
-                self.output.graph.placeholder(var.source.local_name)
+                node = self.output.graph.placeholder(var.source.local_name)
+                node.meta["grapharg"] = GraphArg(example=var.var)
 
     def create_call_resume_at(self, inst: Instruction | None) -> list[Instruction]:
         assert inst is not None

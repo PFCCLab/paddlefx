@@ -20,7 +20,7 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
     return gl.forward
 
 
-@paddlefx.optimize(my_compiler)
+@paddlefx.optimize(backend=my_compiler)
 def add(x, y):
     z = x + y
     return z

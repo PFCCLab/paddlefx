@@ -18,7 +18,7 @@ def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = N
 
 
 net = resnet18()
-optimized_net = paddlefx.optimize(my_compiler)(net)
+optimized_net = paddlefx.optimize(backend=my_compiler)(net)
 
 x = paddle.rand([1, 3, 224, 224])
 out = net(x)

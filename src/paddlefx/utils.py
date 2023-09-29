@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dis
 import logging
+import traceback
 import types
 
 from typing import TYPE_CHECKING
@@ -54,3 +55,32 @@ def hashable(obj) -> bool:
         return True
     except TypeError as e:
         return False
+
+
+class InnerErrorBase(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # TODO: add BreakpointManager
+
+    def print(self):
+        lines = traceback.format_tb(self.__traceback__)
+        print("".join(lines))
+
+
+class InnerError(InnerErrorBase):
+    pass
+
+
+class HasNoAttributeError(InnerError):
+    pass
+
+
+class FallbackError(InnerErrorBase):
+    def __init__(self, msg, disable_eval_frame=False):
+        super().__init__(msg)
+        self.disable_eval_frame = False
+
+
+# raise in inline function call strategy.
+class BreakGraphError(InnerErrorBase):
+    pass

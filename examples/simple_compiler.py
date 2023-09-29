@@ -9,19 +9,30 @@ import paddle.tensor
 
 import paddlefx
 
-from paddlefx.compiler import CompilerBase
+from paddlefx.compiler import TVMCompiler
+
+paddle.seed(0)
 
 logging.getLogger().setLevel(logging.DEBUG)
 
 
-def add(x, y):
-    return x + y
+def inner_func(x, y):
+    p = paddle.add(x, y)
+    q = paddle._C_ops.subtract(x, y)
+    z = p * q
+    return z / y
 
 
-optimized_net = paddlefx.optimize(CompilerBase(print_tabular=True))(add)
+def func(a, b):
+    d = inner_func(a, b)
+    return d
+
+
+optimized_net = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
 
 x = paddle.rand([1, 224])
-out = add(x, x)
-res = optimized_net(x, x)
+y = paddle.rand([1, 224])
+out = func(x, y)
+res = optimized_net(x, y)
 
 np.testing.assert_equal(res.numpy(), out.numpy())

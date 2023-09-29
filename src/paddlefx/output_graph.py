@@ -12,8 +12,10 @@ from .bytecode_transformation import Instruction, create_instruction
 from .codegen import PyCodegen
 from .graph import Graph
 from .graph_layer import GraphLayer
+from .node import Node
 from .source import LocalSource
 from .utils import format_instruction, log_code, log_instructions
+from .variables.builder import GraphArg
 
 if TYPE_CHECKING:
     from .pyeval import PyEval, PyEvalBase
@@ -29,7 +31,7 @@ class OutputGraph:
         self,
         frame: types.FrameType,
         code_options: dict,
-        compiler_fn: Callable,
+        compiler_fn: Callable[[GraphLayer, list[paddle.Tensor]], Callable],
         root_tx: PyEval,
     ):
         self.instructions: list[Instruction] = []
@@ -41,9 +43,29 @@ class OutputGraph:
 
         self.should_exit = False
 
+    @property
+    def placeholders(self) -> list[Node]:
+        r = []
+        for node in self.graph.nodes:
+            if node.op == "placeholder":
+                r.append(node)
+                continue
+            break
+        return r
+
+    @property
+    def graphargs(self) -> list[GraphArg]:
+        return [node.meta["grapharg"] for node in self.placeholders]
+
     def add_output_instructions(self, insts: list[Instruction]) -> None:
         self.instructions.extend(insts)
         self.should_exit = True
+
+    def example_inputs(self) -> list[paddle.Tensor]:
+        result = []
+        for arg in self.graphargs:
+            result.extend(arg.get_examples())
+        return result
 
     def apply_compiler(self, tx: PyEvalBase, rv: list[VariableBase], root):
         from .eval_frame import disable
@@ -53,7 +75,8 @@ class OutputGraph:
         gl = GraphLayer(root, self.graph)
 
         compiled_fn_name = f"__compiled_fn_{next(_compiled_fn_counter)}"
-        compiled_fn = self.compiler_fn(gl, None)
+        # TODO: add inputs
+        compiled_fn = self.compiler_fn(gl, self.example_inputs())
         log_code(
             compiled_fn.__code__,
             f"COMPILED_FN {compiled_fn_name}",

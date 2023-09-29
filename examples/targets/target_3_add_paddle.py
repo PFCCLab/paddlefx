@@ -10,16 +10,12 @@ import paddle._C_ops
 
 import paddlefx
 
+from paddlefx.compiler import TVMCompiler
+
 logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 # logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 paddle.seed(0)
-
-
-def my_compiler(gl: paddlefx.GraphLayer, example_inputs=None):
-    print("my_compiler() called with FX graph:")
-    gl.graph.print_tabular()
-    return gl.forward
 
 
 def func(x, y):
@@ -28,7 +24,7 @@ def func(x, y):
     return o
 
 
-@paddlefx.optimize(my_compiler)
+@paddlefx.optimize(backend=TVMCompiler(print_tabular=True))
 def net(a, b):
     c = func(a, b)
     return c
