@@ -6,8 +6,6 @@ import paddle.nn
 
 import paddlefx
 
-from paddlefx.compiler import TVMCompiler
-
 paddle.seed(0)
 
 
@@ -29,7 +27,7 @@ def func(a, b):
 
 
 def check_func(func, *args):
-    comiled_func = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
+    comiled_func = paddlefx.optimize(func)
     out = func(*args)
     res = comiled_func(*args)
     np.testing.assert_allclose(res, out)
