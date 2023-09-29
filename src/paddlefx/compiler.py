@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import operator
-
 from typing import TYPE_CHECKING, Any, Callable
 
 import paddle
@@ -103,45 +101,22 @@ class TVMCompiler(CompilerBase):
     def compile_call_function(
         self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
     ):
-        from tvm import te
+        from tvm import topi
 
         target_name = node.target.__name__
-        if target_name in ["subtract"]:
-            target_name = "sub"
 
-        if target_name in ["add", "sub", "mul", "truediv"]:
+        map_ops_to_tvm = {
+            "add": topi.add,
+            "sub": topi.subtract,
+            "subtract": topi.subtract,
+            "mul": topi.multiply,
+            "truediv": topi.divide,
+        }
+
+        if target_name in map_ops_to_tvm.keys():
             left = symbol_table[str(node.args[0])]
             right = symbol_table[str(node.args[1])]
-            operator_func = getattr(operator, target_name)
-
-            def fcompute(*indices):
-                left_indices = list(indices)
-                right_indices = list(indices)
-                assert len(left.shape) == len(
-                    right.shape
-                ), "left and right should have same rank"
-                for i in range(len(indices)):
-                    left_axis = left.shape[i]
-                    right_axis = right.shape[i]
-                    if left_axis != right_axis:
-                        if left_axis == 1:
-                            left_indices[i] = 0
-                        elif right_axis == 1:
-                            right_indices[i] = 0
-                        else:
-                            raise ValueError(
-                                f"left and right should have same shape, but get {left.shape} and {right.shape}"
-                            )
-
-                return operator_func(
-                    left[tuple(left_indices)], right[tuple(right_indices)]
-                )
-
-            symbol_table[str(node.name)] = te.compute(  # type: ignore
-                left.shape,
-                fcompute,
-                name=str(node.name),
-            )
+            symbol_table[node.name] = map_ops_to_tvm[target_name](left, right)
         else:
             raise NotImplementedError(f"Unsupported function: {target_name}")
 
