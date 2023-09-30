@@ -1,31 +1,24 @@
 from __future__ import annotations
 
-import logging
-
 import numpy as np
 import paddle
 import paddle.nn
 
 import paddlefx
 
-logging.getLogger().setLevel(logging.DEBUG)
+from paddlefx.compiler import TVMCompiler
+
+# logging.getLogger().setLevel(logging.DEBUG)
 
 
-def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
-    print("my_compiler() called with FX graph:")
-    gl.graph.print_tabular()
-    print(gl.get_source())
-    return gl.forward
-
-
-@paddlefx.optimize(backend=my_compiler)
+@paddlefx.optimize(backend=TVMCompiler(print_tabular=True))
 def add(a, b):
     print('\tcall add')
     c = a + b
     return c
 
 
-@paddlefx.optimize(backend=my_compiler)
+@paddlefx.optimize(backend=TVMCompiler(print_tabular=True))
 def func(a, b):
     print('\tcall func')
     c = add(a, b)
@@ -56,7 +49,7 @@ def foo(a, b):
     return l
 
 
-optimized_foo = paddlefx.optimize(backend=my_compiler)(foo)
+optimized_foo = paddlefx.optimize(backend=TVMCompiler(print_tabular=True))(foo)
 
 original_res = foo(in_a, in_b)
 optimized_res = optimized_foo(in_a, in_b)
@@ -64,8 +57,8 @@ optimized_res = optimized_foo(in_a, in_b)
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())
 
 dtype = 'float32'
-in_a = paddle.to_tensor([1], dtype=dtype)
-in_b = paddle.to_tensor([0], dtype=dtype)
+in_a = paddle.to_tensor([1, 2], dtype=dtype)
+in_b = paddle.to_tensor([0, 1], dtype=dtype)
 
 
 def inplace(a, b):
@@ -79,7 +72,7 @@ def inplace(a, b):
     return a
 
 
-optimized_foo = paddlefx.optimize(backend=my_compiler)(inplace)
+optimized_foo = paddlefx.optimize(backend=TVMCompiler(print_tabular=True))(inplace)
 
 original_res = inplace(in_a, in_b)
 optimized_res = optimized_foo(in_a, in_b)
@@ -100,9 +93,10 @@ class ExampleNet(paddle.nn.Layer):
 
 
 net = ExampleNet()
-optimized_func = paddlefx.optimize(backend=my_compiler)(net)
+optimized_func = paddlefx.optimize(backend=TVMCompiler(print_tabular=True))(net)
 
 original_res = net(in_a, in_b)
+optimized_res = optimized_func(in_a, in_b)
 optimized_res = optimized_func(in_a, in_b)
 # TODO(zrr1999): `optimized_res` is the result of running the converted bytecode in the future.
 np.testing.assert_equal(original_res.numpy(), optimized_res.numpy())

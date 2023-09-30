@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 
 import paddle
+import paddle.device
 
 import paddlefx
 
@@ -65,7 +66,13 @@ class TVMCompiler(CompilerBase):
 
         from tvm import te
 
-        tgt = tvm.target.Target(target="llvm", host="llvm")
+        device = paddle.device.get_device()
+        if device == "cpu":
+            target = tvm.target.Target(target="llvm", host="llvm")
+        elif device == "gpu":
+            target = tvm.target.Target(target="cuda", host="llvm")
+        else:
+            raise ValueError(f"Unsupported device in tvm backend: {device}")
         schedule = te.create_schedule(symbol_table["output"].op)
         tvm_func = tvm.build(
             schedule,
@@ -74,7 +81,7 @@ class TVMCompiler(CompilerBase):
                 for k, v in symbol_table.items()
                 if v.name.startswith("input") or k == "output"
             ],
-            tgt,
+            target,
             name=symbol_table["output"].name,
         )
 
@@ -116,12 +123,15 @@ class TVMCompiler(CompilerBase):
             "subtract": topi.subtract,
             "mul": topi.multiply,
             "truediv": topi.divide,
+            "gt": topi.greater,
+            "lt": topi.less,
+            "ge": topi.greater_equal,
+            "le": topi.less_equal,
         }
 
         if target_name in map_ops_to_tvm.keys():
-            left = symbol_table[str(node.args[0])]
-            right = symbol_table[str(node.args[1])]
-            symbol_table[node.name] = map_ops_to_tvm[target_name](left, right)
+            symbol_args = [symbol_table[str(arg)] for arg in node.args]
+            symbol_table[node.name] = map_ops_to_tvm[target_name](*symbol_args)
         else:
             raise NotImplementedError(f"Unsupported function: {target_name}")
 

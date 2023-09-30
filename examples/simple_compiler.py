@@ -34,8 +34,8 @@ optimized_func = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True)
 x = paddle.rand([4, 6, 1])
 y = paddle.rand([4, 6, 224])
 for _ in range(10):
-    out = func(y, x)
     res = optimized_func(x, y)
     res = optimized_func(y, x)
+    out = func(y, x)
 
     np.testing.assert_equal(res.numpy(), out.numpy())
