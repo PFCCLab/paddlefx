@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import paddle
 import paddle.device
@@ -12,10 +12,15 @@ from .base import CompilerBase, CompilerError, paddle_dtype_to_str
 if TYPE_CHECKING:
     from tvm import te
 
+    from .base import SybolTable
+
 
 class TVMCompiler(CompilerBase):
     def gen_compiled_func(
-        self, symbol_table: dict[str, te.Tensor], dummy_inputs: list, dummy_outputs: Any
+        self,
+        symbol_table: SybolTable[te.Tensor],
+        dummy_inputs: list,
+        dummy_outputs: list,
     ):
         import tvm
 
@@ -31,42 +36,41 @@ class TVMCompiler(CompilerBase):
         schedule = te.create_schedule(symbol_table["output"].op)
         tvm_func = tvm.build(
             schedule,
-            [
-                v
-                for k, v in symbol_table.items()
-                if v.name.startswith("input") or k == "output"
-            ],
+            [*symbol_table.inputs, *symbol_table.outputs],
             target,
             name=symbol_table["output"].name,
         )
 
         def compiled_func(*args):
             inputs = [tvm.nd.array(arg.numpy()) for arg in args]
-            dummy_output = dummy_outputs[0]
-            output = tvm.nd.empty(
-                dummy_output.shape, paddle_dtype_to_str(dummy_output.dtype)
-            )
-            tvm_func(*inputs, output)
-            output = paddle.to_tensor(output.asnumpy())
-            return (output,)
+
+            outputs = [
+                tvm.nd.empty(out.shape, paddle_dtype_to_str(out.dtype))
+                for out in dummy_outputs
+            ]
+            tvm_func(*inputs, *outputs)
+            return tuple(paddle.to_tensor(out.asnumpy()) for out in outputs)
 
         compiled_func(*dummy_inputs)
         return compiled_func
 
     def compile_placeholder(
-        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
     ):
         from tvm import te
 
-        symbol_table[node.name] = te.placeholder(
-            inputs[self.input_index].shape,
-            paddle_dtype_to_str(inputs[self.input_index].dtype),
-            name=f"input_{node.name}",
+        symbol_table.add_input(
+            node.name,
+            te.placeholder(
+                inputs[self.input_index].shape,
+                paddle_dtype_to_str(inputs[self.input_index].dtype),
+                name=f"input_{node.name}",
+            ),
         )
         self.input_index += 1
 
     def compile_call_module(
-        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
     ):
         pass
 
@@ -74,7 +78,7 @@ class TVMCompiler(CompilerBase):
         raise CompilerError(f"Unsupported module: {target_name}")
 
     def compile_call_function(
-        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
     ):
         from tvm import topi
 
@@ -99,7 +103,6 @@ class TVMCompiler(CompilerBase):
             raise NotImplementedError(f"Unsupported function: {target_name}")
 
     def compile_output(
-        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
     ):
-        ret = symbol_table[str(node.args[0][0])]
-        symbol_table["output"] = ret
+        symbol_table.outputs = tuple(symbol_table[str(arg)] for arg in node.args[0])

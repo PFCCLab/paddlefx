@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+import dataclasses
+
+from typing import Callable, Generic, TypeVar
 
 import paddle
 import paddle.device
 
 import paddlefx
+
+T = TypeVar("T")
 
 
 def paddle_dtype_to_str(dtype: paddle.dtype) -> str:
@@ -29,12 +33,45 @@ class CompilerError(Exception):
     pass
 
 
+@dataclasses.dataclass
+class SybolTable(Generic[T]):
+    def __init__(self):
+        self._symbol_table: dict[str, T] = {}
+        self._inputs: list[T] = []
+        self._outputs: tuple[T, ...] = ()
+
+    def __getitem__(self, key: str) -> T:
+        return self._symbol_table[key]
+
+    def __setitem__(self, key: str, value: T):
+        self._symbol_table[key] = value
+
+    def __iter__(self):
+        return iter(self._symbol_table.items())
+
+    @property
+    def inputs(self) -> tuple[T, ...]:
+        return tuple(self._inputs)
+
+    def add_input(self, key: str, value: T):
+        self._inputs.append(value)
+        self._symbol_table[key] = value
+
+    @property
+    def outputs(self) -> tuple[T, ...]:
+        return self._outputs
+
+    @outputs.setter
+    def outputs(self, value: tuple[T, ...]):
+        self._outputs = value
+
+
 class CompilerBase:
     def __init__(
         self,
         *,
-        allow_fallback: bool = True,
-        full_graph=False,
+        allow_fallback: bool = False,
+        full_graph: bool = False,
         print_tabular_mode: str | None = None,
     ):
         self.allow_fallback = allow_fallback
@@ -49,7 +86,7 @@ class CompilerBase:
         return self.compile(gl, example_inputs)
 
     def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
-        symbol_table: dict[str, Any] = {}
+        symbol_table: SybolTable = SybolTable()
         example_outputs = gl.forward(*example_inputs)
         try:
             for node in gl.graph.nodes:
@@ -69,7 +106,7 @@ class CompilerBase:
             ) from e
 
     def gen_compiled_func(
-        self, symbol_table: dict[str, Any], dummy_inputs: list, dummy_outputs: Any
+        self, symbol_table: SybolTable, dummy_inputs: list, dummy_outputs: list
     ):
         raise NotImplementedError("CompilerBase is a abstract class")
 
