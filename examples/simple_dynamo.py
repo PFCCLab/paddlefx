@@ -18,9 +18,8 @@ compiler = TVMCompiler(full_graph=True, print_tabular_mode="rich")
 def inner_func(x, y):
     p = x + y
     q = paddle._C_ops.subtract(x, y)  # type: ignore
-    u = paddle._C_ops.subtract(x, y)  # type: ignore
     print(1)
-    z = p * q * u
+    z = p * q
     return z / y
 
 

@@ -123,11 +123,11 @@ class PyCodegen:
         self.extend_output(create_call_function(len(placeholders), False))
 
     def call(self, vars: VariableStack[VariableBase]):
-        for i, var in enumerate(vars):
-            # TODO: Maybe self.call_one(i, var)?
-            self.call_one(0, var)
+        self.tensor_index = 0  # TDDO: rm this
+        for var in vars:
+            self.call_one(var)
 
-    def call_one(self, index: int, value: VariableBase):
+    def call_one(self, value: VariableBase):
         """Generate code such that top-of-stack (TOS) is set to value."""
         output = self.instructions
         graph_outputs = self.graph_outputs
@@ -150,7 +150,8 @@ class PyCodegen:
 
             output.append(self.create_load(self.graph_output_var))
             # TODO: rm hardcode
-            output.append(self.create_load_const(index))
+            output.append(self.create_load_const(self.tensor_index))
+            self.tensor_index += 1
             output.append(create_instruction("BINARY_SUBSCR"))
         elif value.var == None:
             output.append(self.create_load_const(None))
