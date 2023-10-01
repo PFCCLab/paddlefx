@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class TVMCompiler(CompilerBase):
-    def compile(
+    def gen_compiled_func(
         self, symbol_table: dict[str, te.Tensor], dummy_inputs: list, dummy_outputs: Any
     ):
         import tvm
