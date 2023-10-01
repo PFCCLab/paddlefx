@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import numpy as np
 import paddle
 import paddle.nn
 
-import paddlefx
+from utils import check_func
 
 from paddlefx.compiler.tvm import TVMCompiler
 
@@ -26,16 +25,12 @@ class SimpleNet(paddle.nn.Layer):
 net = SimpleNet()
 
 
-def check_func(func, *args):
-    comiled_func = paddlefx.optimize(
-        func, backend=TVMCompiler(print_tabular_mode="rich")
-    )
-    out = func(*args)
-    res = comiled_func(*args)
-    np.testing.assert_allclose(res, out)
-
-
 def test_simple_net():
     in_a = paddle.rand([8, 16])
-    in_b = paddle.rand([8, 16])
-    check_func(net, in_a, in_b)
+    in_b = paddle.rand([1, 16])
+    check_func(
+        net,
+        in_a,
+        in_b,
+        backend=TVMCompiler(allow_fallback=False, print_tabular_mode="rich"),
+    )
