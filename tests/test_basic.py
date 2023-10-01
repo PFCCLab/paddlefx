@@ -9,14 +9,23 @@ import paddlefx
 paddle.seed(0)
 
 
-def add(x, y):
-    z = x + y
-    return z
+def binary_operator(a, b):
+    c = a / b
+    d = a * b
+    e = c + d
+    f = e - a
+    g = f > e
+    h = g < f
+    i = h <= g
+    j = i >= i
+    k = j == i
+    l = j != k
+    return l
 
 
 def inner_func(x, y):
     p = paddle.add(x, y)
-    q = paddle._C_ops.subtract(x, y)
+    q = paddle._C_ops.subtract(x, y)  # type: ignore
     z = p * q
     return z / y
 
@@ -33,13 +42,13 @@ def check_func(func, *args):
     np.testing.assert_allclose(res, out)
 
 
-def test_add():
-    in_a = paddle.rand([1, 224])
-    in_b = paddle.rand([1, 224])
-    check_func(add, in_a, in_b)
+def test_binary_operator():
+    in_a = paddle.rand([1, 24])
+    in_b = paddle.rand([8, 24])
+    check_func(binary_operator, in_a, in_b)
 
 
-def test_func_add():
+def test_func():
     in_a = paddle.rand([8, 8, 16])
     in_b = paddle.rand([8, 8, 16])
     check_func(func, in_a, in_b)

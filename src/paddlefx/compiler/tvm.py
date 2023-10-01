@@ -1,65 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import paddle
 import paddle.device
 
 import paddlefx
 
+from .base import CompilerBase, CompilerError, paddle_dtype_to_str
+
 if TYPE_CHECKING:
     from tvm import te
 
 
-def paddle_dtype_to_str(dtype: paddle.dtype) -> str:
-    if dtype == paddle.float32:
-        return "float32"
-    elif dtype == paddle.float64:
-        return "float64"
-    elif dtype == paddle.float16:
-        return "float16"
-    elif dtype == paddle.int32:
-        return "int32"
-    elif dtype == paddle.int64:
-        return "int64"
-    elif dtype == paddle.bool:
-        return "bool"
-    else:
-        raise ValueError(f"Unsupported dtype: {dtype}")
-
-
-class CompilerBase:
-    def __init__(self, *, full_graph=False, print_tabular: bool = False):
-        self.full_graph = full_graph  # TODO: support full_graph
-        self.print_tabular = print_tabular
-        self.input_index = 0
-
-    def __call__(self, gl: paddlefx.GraphLayer, example_inputs: list):
-        if self.print_tabular:
-            gl.graph.print_tabular()
-        return self.compile(gl, example_inputs)
-
-    def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
-        dummy_outputs = gl.forward(*example_inputs)
-        symbol_table: dict[str, Any] = {}
-        try:
-            for node in gl.graph.nodes:
-                getattr(self, f"compile_{node.op}")(node, symbol_table, example_inputs)
-            self.input_index = 0
-            return self.gen_compiled_func(symbol_table, example_inputs, dummy_outputs)
-        except (AttributeError, NotImplementedError) as e:
-            print(f"AttributeError when compiling graph: {e}")
-            self.input_index = 0
-            return gl.forward
-
-    def gen_compiled_func(
-        self, symbol_table: dict[str, Any], dummy_inputs: list, dummy_outputs: Any
-    ):
-        raise NotImplementedError("CompilerBase is a abstract class")
-
-
 class TVMCompiler(CompilerBase):
-    def gen_compiled_func(
+    def compile(
         self, symbol_table: dict[str, te.Tensor], dummy_inputs: list, dummy_outputs: Any
     ):
         import tvm
@@ -109,6 +64,14 @@ class TVMCompiler(CompilerBase):
             name=f"input_{node.name}",
         )
         self.input_index += 1
+
+    def compile_call_module(
+        self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list
+    ):
+        pass
+
+        target_name = node.target
+        raise CompilerError(f"Unsupported module: {target_name}")
 
     def compile_call_function(
         self, node: paddlefx.Node, symbol_table: dict[str, te.Tensor], inputs: list

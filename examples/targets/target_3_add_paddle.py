@@ -20,11 +20,11 @@ paddle.seed(0)
 
 def func(x, y):
     z = paddle.add(x, y)
-    o = paddle._C_ops.add(z, z)
+    o = paddle._C_ops.add(z, z)  # type: ignore
     return o
 
 
-@paddlefx.optimize(backend=TVMCompiler(print_tabular=True))
+@paddlefx.optimize(backend=TVMCompiler(print_tabular_mode="rich"))
 def net(a, b):
     c = func(a, b)
     return c

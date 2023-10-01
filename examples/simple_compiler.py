@@ -16,7 +16,7 @@ paddle.seed(0)
 
 def inner_func(x, y):
     p = paddle.add(x, y)
-    q = paddle._C_ops.subtract(x, y)
+    q = paddle._C_ops.subtract(x, y)  # type: ignore
     z = p * q
     return z / y
 
@@ -29,7 +29,7 @@ def func(a, b):
     return d
 
 
-optimized_func = paddlefx.optimize(func, backend=TVMCompiler(print_tabular=True))
+optimized_func = paddlefx.optimize(func, backend=TVMCompiler(print_tabular_mode="rich"))
 
 x = paddle.rand([4, 6, 1])
 y = paddle.rand([4, 6, 224])
