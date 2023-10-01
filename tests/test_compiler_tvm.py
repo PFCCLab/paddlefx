@@ -32,5 +32,5 @@ def test_simple_net():
         net,
         in_a,
         in_b,
-        backend=TVMCompiler(allow_fallback=False, print_tabular_mode="rich"),
+        backend=TVMCompiler(full_graph=True, print_tabular_mode="rich"),
     )

@@ -124,7 +124,8 @@ class PyCodegen:
 
     def call(self, vars: VariableStack[VariableBase]):
         for i, var in enumerate(vars):
-            self.call_one(i, var)
+            # TODO: Maybe self.call_one(i, var)?
+            self.call_one(0, var)
 
     def call_one(self, index: int, value: VariableBase):
         """Generate code such that top-of-stack (TOS) is set to value."""

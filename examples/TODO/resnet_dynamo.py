@@ -9,16 +9,11 @@ from paddle.vision.models import resnet18
 
 import paddlefx
 
+from paddlefx.compiler.tvm import TVMCompiler
 
-def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):
-    print("my_compiler() called with FX graph:")
-    print(gl.get_source())
-    gl.graph.print_tabular(print_mode="rich")
-    return gl.forward
-
-
+compiler = TVMCompiler(full_graph=True, print_tabular_mode="rich")
 net = resnet18()
-optimized_net = paddlefx.optimize(backend=my_compiler)(net)
+optimized_net = paddlefx.optimize(net, backend=compiler)
 
 x = paddle.rand([1, 3, 224, 224])
 out = net(x)
