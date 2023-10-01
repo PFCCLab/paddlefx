@@ -45,18 +45,22 @@ class CompilerBase:
             for node in gl.graph.nodes:
                 getattr(self, f"compile_{node.op}")(node, symbol_table, example_inputs)
             self.input_index = 0
-            return self.gen_compiled_func(symbol_table, dummy_outputs)
+            return self.gen_compiled_func(symbol_table, example_inputs, dummy_outputs)
         except (AttributeError, NotImplementedError) as e:
             print(f"AttributeError when compiling graph: {e}")
             self.input_index = 0
             return gl.forward
 
-    def gen_compiled_func(self, symbol_table: dict[str, Any], dummy_outputs: Any):
+    def gen_compiled_func(
+        self, symbol_table: dict[str, Any], dummy_inputs: list, dummy_outputs: Any
+    ):
         raise NotImplementedError("CompilerBase is a abstract class")
 
 
 class TVMCompiler(CompilerBase):
-    def gen_compiled_func(self, symbol_table: dict[str, te.Tensor], dummy_outputs: Any):
+    def gen_compiled_func(
+        self, symbol_table: dict[str, te.Tensor], dummy_inputs: list, dummy_outputs: Any
+    ):
         import tvm
 
         from tvm import te
@@ -84,6 +88,7 @@ class TVMCompiler(CompilerBase):
             output = paddle.to_tensor(output.asnumpy())
             return (output,)
 
+        compiled_func(*dummy_inputs)
         return compiled_func
 
     def compile_placeholder(

@@ -23,3 +23,9 @@ src/paddlefx/_version.py
 .cache/
 *.so
 tmp/
+
+# viztracer
+result.json
+
+# mlir
+*.mlir

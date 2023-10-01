@@ -13,11 +13,13 @@ from .codegen import PyCodegen
 from .graph import Graph
 from .graph_layer import GraphLayer
 from .node import Node
-from .source import LocalSource
+from .source import GlobalSource, LocalSource
 from .utils import format_instruction, log_code, log_instructions
+from .variables.base import TensorVariable, find_traceable_vars
 from .variables.builder import GraphArg
 
 if TYPE_CHECKING:
+    from .cache_manager import GuardFunction
     from .pyeval import PyEval, PyEvalBase
     from .variables.base import VariableBase
 
@@ -35,6 +37,7 @@ class OutputGraph:
         root_tx: PyEval,
     ):
         self.instructions: list[Instruction] = []
+        self.input_variables: list[VariableBase] = []
         self.code_options = code_options
         self.compiler_fn = compiler_fn
         self.root_tx = root_tx
@@ -56,6 +59,33 @@ class OutputGraph:
     @property
     def graphargs(self) -> list[GraphArg]:
         return [node.meta["grapharg"] for node in self.placeholders]
+
+    @property
+    def guard_fn(self) -> GuardFunction:
+        str_guards: list[str] = []
+
+        for variable in find_traceable_vars(self.input_variables):
+            # TODO: add global_guarded_variables
+            # TODO: define make_guard in VariableBase
+            if isinstance(variable, TensorVariable):
+                assert variable.source is not None
+                if isinstance(variable.source, LocalSource):
+                    var_name = f"frame.f_locals['{variable.source.local_name}']"
+                elif isinstance(variable.source, GlobalSource):
+                    var_name = f"frame.f_globals['{variable.source.global_name}']"
+                else:
+                    raise ValueError(f"Unsupported source: {variable.source}")
+
+                str_guards.extend(
+                    [
+                        f"str({var_name}.shape) == '{variable.var.shape}'",
+                        f"str({var_name}.dtype) == '{variable.var.dtype}'",
+                    ]
+                )
+        if len(str_guards) == 0:
+            return lambda frame: True
+        guard_string = f"lambda frame: {' and '.join(str_guards)}"
+        return eval(guard_string)
 
     def add_output_instructions(self, insts: list[Instruction]) -> None:
         self.instructions.extend(insts)
