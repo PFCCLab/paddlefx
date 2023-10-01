@@ -76,7 +76,9 @@ class CallableVariable(VariableBase):
                     if fn is layers:
                         target = name
                         break
-                return obj_cls(node=graph.call_module(target, args, kwargs))
+                return TensorVariable(
+                    None, node=graph.call_module(target, args, kwargs)
+                )
         elif fn.__module__.startswith("paddle"):
             # TODO: support multiple ouputs and containers
             ot = type(args[0].var)
