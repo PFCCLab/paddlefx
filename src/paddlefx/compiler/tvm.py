@@ -12,13 +12,13 @@ from .base import CompilerBase, CompilerError, paddle_dtype_to_str
 if TYPE_CHECKING:
     from tvm import te
 
-    from .base import SybolTable
+    from .base import SymbolTable
 
 
 class TVMCompiler(CompilerBase):
     def gen_compiled_func(
         self,
-        symbol_table: SybolTable[te.Tensor],
+        symbol_table: SymbolTable[te.Tensor],
         dummy_inputs: list,
         dummy_outputs: list,
     ):
@@ -55,7 +55,7 @@ class TVMCompiler(CompilerBase):
         return compiled_func
 
     def compile_placeholder(
-        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SymbolTable[te.Tensor], inputs: list
     ):
         from tvm import te
 
@@ -70,7 +70,7 @@ class TVMCompiler(CompilerBase):
         self.input_index += 1
 
     def compile_call_module(
-        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SymbolTable[te.Tensor], inputs: list
     ):
         pass
 
@@ -78,7 +78,7 @@ class TVMCompiler(CompilerBase):
         raise CompilerError(f"Unsupported module: {target_name}")
 
     def compile_call_function(
-        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SymbolTable[te.Tensor], inputs: list
     ):
         from tvm import topi
 
@@ -103,6 +103,6 @@ class TVMCompiler(CompilerBase):
             raise NotImplementedError(f"Unsupported function: {target_name}")
 
     def compile_output(
-        self, node: paddlefx.Node, symbol_table: SybolTable[te.Tensor], inputs: list
+        self, node: paddlefx.Node, symbol_table: SymbolTable[te.Tensor], inputs: list
     ):
         symbol_table.outputs = tuple(symbol_table[str(arg)] for arg in node.args[0])

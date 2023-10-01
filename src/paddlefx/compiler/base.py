@@ -34,7 +34,7 @@ class CompilerError(Exception):
 
 
 @dataclasses.dataclass
-class SybolTable(Generic[T]):
+class SymbolTable(Generic[T]):
     def __init__(self):
         self._symbol_table: dict[str, T] = {}
         self._inputs: list[T] = []
@@ -86,7 +86,7 @@ class CompilerBase:
         return self.compile(gl, example_inputs)
 
     def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
-        symbol_table: SybolTable = SybolTable()
+        symbol_table: SymbolTable = SymbolTable()
         example_outputs = gl.forward(*example_inputs)
         try:
             for node in gl.graph.nodes:
@@ -106,7 +106,7 @@ class CompilerBase:
             ) from e
 
     def gen_compiled_func(
-        self, symbol_table: SybolTable, dummy_inputs: list, dummy_outputs: list
+        self, symbol_table: SymbolTable, dummy_inputs: list, dummy_outputs: list
     ):
         raise NotImplementedError("CompilerBase is a abstract class")
 
