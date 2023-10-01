@@ -105,7 +105,6 @@ class OutputGraph:
         gl = GraphLayer(root, self.graph)
 
         compiled_fn_name = f"__compiled_fn_{next(_compiled_fn_counter)}"
-        # TODO: add inputs
         compiled_fn = self.compiler_fn(gl, self.example_inputs())
         log_code(
             compiled_fn.__code__,

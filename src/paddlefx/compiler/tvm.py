@@ -33,12 +33,12 @@ class TVMCompiler(CompilerBase):
             target = tvm.target.Target(target="cuda", host="llvm")
         else:
             raise CompilerError(f"Unsupported device in tvm backend: {device}")
-        schedule = te.create_schedule(symbol_table["output"].op)
+        schedule = te.create_schedule([out.op for out in symbol_table.outputs])
         tvm_func = tvm.build(
             schedule,
             [*symbol_table.inputs, *symbol_table.outputs],
             target,
-            name=symbol_table["output"].name,
+            name="tvm_func",
         )
 
         def compiled_func(*args):
