@@ -30,7 +30,14 @@ class CompilerError(Exception):
 
 
 class CompilerBase:
-    def __init__(self, *, full_graph=False, print_tabular_mode: str | None = None):
+    def __init__(
+        self,
+        *,
+        allow_fallback: bool = True,
+        full_graph=False,
+        print_tabular_mode: str | None = None,
+    ):
+        self.allow_fallback = allow_fallback
         self.full_graph = full_graph  # TODO: support full_graph
         self.print_tabular_mode = print_tabular_mode
         self.input_index = 0
@@ -49,13 +56,17 @@ class CompilerBase:
                 getattr(self, f"compile_{node.op}")(node, symbol_table, example_inputs)
             return self.gen_compiled_func(symbol_table, example_inputs, example_outputs)
         except CompilerError as e:
-            print(f"CompilerError when compiling graph, useing default forward: {e}")
-            self.input_index = 0
-            return gl.forward
+            if self.allow_fallback:
+                print(
+                    f"CompilerError when compiling graph, useing default forward: {e}"
+                )
+                self.input_index = 0
+                return gl.forward
+            raise e
         except AttributeError as e:
             raise AttributeError(
-                f"AttributeError when compiling graph, check if you use abstract class: {e}"
-            )
+                f"AttributeError when compiling graph, check if you use abstract class"
+            ) from e
 
     def gen_compiled_func(
         self, symbol_table: dict[str, Any], dummy_inputs: list, dummy_outputs: Any

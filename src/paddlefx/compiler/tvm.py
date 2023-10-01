@@ -27,7 +27,7 @@ class TVMCompiler(CompilerBase):
         elif device == "gpu":
             target = tvm.target.Target(target="cuda", host="llvm")
         else:
-            raise ValueError(f"Unsupported device in tvm backend: {device}")
+            raise CompilerError(f"Unsupported device in tvm backend: {device}")
         schedule = te.create_schedule(symbol_table["output"].op)
         tvm_func = tvm.build(
             schedule,
