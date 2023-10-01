@@ -15,7 +15,7 @@ from paddlefx.compiler import TVMCompiler
 logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 # logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-paddle.seed(0)
+paddle.seed(1234)
 
 
 def func(x, y):

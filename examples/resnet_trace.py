@@ -7,7 +7,7 @@ from paddle.vision.models import resnet18
 
 from paddlefx import symbolic_trace
 
-paddle.seed(0)
+paddle.seed(1234)
 
 net = resnet18()
 traced_layer = symbolic_trace(net)

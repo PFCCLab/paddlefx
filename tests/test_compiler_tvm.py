@@ -7,7 +7,7 @@ from utils import check_func
 
 from paddlefx.compiler.tvm import TVMCompiler
 
-paddle.seed(0)
+paddle.seed(1234)
 
 
 class SimpleNet(paddle.nn.Layer):

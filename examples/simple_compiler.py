@@ -9,7 +9,7 @@ import paddlefx
 
 from paddlefx.compiler import TVMCompiler
 
-paddle.seed(0)
+paddle.seed(1234)
 
 # logging.getLogger().setLevel(logging.DEBUG)
 

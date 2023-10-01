@@ -5,7 +5,7 @@ import paddle.nn
 
 from utils import check_func
 
-paddle.seed(0)
+paddle.seed(1234)
 
 
 def binary_operator(a, b):
