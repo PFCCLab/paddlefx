@@ -22,8 +22,6 @@ def inner_func(x, y):
 def func(a, b):
     d = inner_func(a, b)
     d = inner_func(a, d)
-    d = inner_func(d, a)
-    d = inner_func(a, d)
     return d
 
 
