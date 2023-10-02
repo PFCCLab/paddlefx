@@ -9,7 +9,8 @@ import paddle.device
 
 import paddlefx
 
-T = TypeVar("T")
+PlaceholderT = TypeVar("PlaceholderT")
+ValueT = TypeVar("ValueT")
 
 
 def paddle_dtype_to_str(dtype: paddle.dtype) -> str:
@@ -34,35 +35,44 @@ class CompilerError(Exception):
 
 
 @dataclasses.dataclass
-class SymbolTable(Generic[T]):
+class SymbolTable(Generic[PlaceholderT, ValueT]):
     def __init__(self):
-        self._symbol_table: dict[str, T] = {}
-        self._inputs: list[T] = []
-        self._outputs: tuple[T, ...] = ()
+        self._symbol_table: dict[str, PlaceholderT] = {}
+        self._inputs: list[PlaceholderT] = []
+        self._weights: dict[str, tuple[PlaceholderT, ValueT]] = {}
+        self._outputs: tuple[PlaceholderT, ...] = ()
 
-    def __getitem__(self, key: str) -> T:
+    def __getitem__(self, key: str) -> PlaceholderT:
         return self._symbol_table[key]
 
-    def __setitem__(self, key: str, value: T):
+    def __setitem__(self, key: str, value: PlaceholderT):
         self._symbol_table[key] = value
 
     def __iter__(self):
         return iter(self._symbol_table.items())
 
     @property
-    def inputs(self) -> tuple[T, ...]:
-        return tuple(self._inputs)
+    def inputs(self) -> tuple[PlaceholderT, ...]:
+        return tuple(self._inputs + [value[0] for value in self._weights.values()])
 
-    def add_input(self, key: str, value: T):
+    def add_input(self, key: str, value: PlaceholderT):
         self._inputs.append(value)
         self._symbol_table[key] = value
 
     @property
-    def outputs(self) -> tuple[T, ...]:
+    def weights(self) -> tuple[ValueT, ...]:
+        return tuple(value[1] for value in self._weights.values())
+
+    def add_weight(self, key: str, value: tuple[PlaceholderT, ValueT]):
+        self._weights[key] = value
+        self._symbol_table[key] = value[0]
+
+    @property
+    def outputs(self) -> tuple[PlaceholderT, ...]:
         return self._outputs
 
     @outputs.setter
-    def outputs(self, value: tuple[T, ...]):
+    def outputs(self, value: tuple[PlaceholderT, ...]):
         self._outputs = value
 
 
@@ -89,7 +99,9 @@ class CompilerBase:
         symbol_table: SymbolTable = SymbolTable()
         try:
             for node in gl.graph.nodes:
-                getattr(self, f"compile_{node.op}")(node, symbol_table, example_inputs)
+                getattr(self, f"compile_{node.op}")(
+                    gl, node, symbol_table, example_inputs
+                )
             return self.gen_compiled_func(symbol_table)
         except CompilerError as e:
             if self.allow_fallback:

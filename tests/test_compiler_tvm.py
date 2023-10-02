@@ -13,13 +13,13 @@ paddle.seed(1234)
 class SimpleNet(paddle.nn.Layer):
     def __init__(self):
         super().__init__()
-        self.fc = [paddle.nn.Linear(16, 1), paddle.nn.Linear(16, 4)]
+        self.fc1 = paddle.nn.Linear(16, 4)
+        self.conv1 = paddle.nn.Conv2D(1, 4, 3, 1)
 
     def forward(self, a, b):
-        c = self.fc[0](a)
-        d = self.fc[1](b)
-        e = paddle.add(c, d)
-        return e
+        c = self.fc1(a)
+        d = self.conv1(b)
+        return c, d
 
 
 net = SimpleNet()
@@ -27,7 +27,7 @@ net = SimpleNet()
 
 def test_simple_net():
     in_a = paddle.rand([8, 16])
-    in_b = paddle.rand([1, 16])
+    in_b = paddle.rand([8, 1, 4, 4])
     check_func(
         net,
         in_a,
