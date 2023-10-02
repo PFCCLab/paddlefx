@@ -87,11 +87,10 @@ class CompilerBase:
 
     def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
         symbol_table: SymbolTable = SymbolTable()
-        example_outputs = gl.forward(*example_inputs)
         try:
             for node in gl.graph.nodes:
                 getattr(self, f"compile_{node.op}")(node, symbol_table, example_inputs)
-            return self.gen_compiled_func(symbol_table, example_inputs, example_outputs)
+            return self.gen_compiled_func(gl, symbol_table, example_inputs)
         except CompilerError as e:
             if self.allow_fallback:
                 print(
@@ -106,7 +105,7 @@ class CompilerBase:
             ) from e
 
     def gen_compiled_func(
-        self, symbol_table: SymbolTable, dummy_inputs: list, dummy_outputs: list
+        self, gl: paddlefx.GraphLayer, symbol_table: SymbolTable, dummy_inputs: list
     ):
         raise NotImplementedError("CompilerBase is a abstract class")
 

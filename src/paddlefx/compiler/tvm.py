@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 class TVMCompiler(CompilerBase):
     def gen_compiled_func(
         self,
+        gl: paddlefx.GraphLayer,
         symbol_table: SymbolTable[te.Tensor],
         dummy_inputs: list,
-        dummy_outputs: list,
     ):
         import tvm
 
@@ -43,15 +43,12 @@ class TVMCompiler(CompilerBase):
 
         def compiled_func(*args):
             inputs = [tvm.nd.array(arg.numpy()) for arg in args]
-
             outputs = [
-                tvm.nd.empty(out.shape, paddle_dtype_to_str(out.dtype))
-                for out in dummy_outputs
+                tvm.nd.empty(out.shape, out.dtype) for out in symbol_table.outputs
             ]
             tvm_func(*inputs, *outputs)
             return tuple(paddle.to_tensor(out.asnumpy()) for out in outputs)
 
-        compiled_func(*dummy_inputs)
         return compiled_func
 
     def compile_placeholder(
@@ -72,8 +69,6 @@ class TVMCompiler(CompilerBase):
     def compile_call_module(
         self, node: paddlefx.Node, symbol_table: SymbolTable[te.Tensor], inputs: list
     ):
-        pass
-
         target_name = node.target
         raise CompilerError(f"Unsupported module: {target_name}")
 
