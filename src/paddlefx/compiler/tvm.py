@@ -16,12 +16,7 @@ if TYPE_CHECKING:
 
 
 class TVMCompiler(CompilerBase):
-    def gen_compiled_func(
-        self,
-        gl: paddlefx.GraphLayer,
-        symbol_table: SymbolTable[te.Tensor],
-        dummy_inputs: list,
-    ):
+    def gen_compiled_func(self, symbol_table: SymbolTable[te.Tensor]):
         import tvm
 
         from tvm import te
