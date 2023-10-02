@@ -687,6 +687,9 @@ class PyEval(PyEvalBase):
             ):
                 node = self.output.graph.placeholder(var.source.local_name)
                 node.meta["grapharg"] = GraphArg(example=var.var)
+                # TODO: self.output.global_variables
+                # TODO: add those in PyEvalInline
+                self.output.input_variables.append(var)
 
     def create_call_resume_at(self, inst: Instruction | None) -> list[Instruction]:
         assert inst is not None

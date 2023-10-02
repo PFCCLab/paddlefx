@@ -123,6 +123,7 @@ class PyCodegen:
         self.extend_output(create_call_function(len(placeholders), False))
 
     def call(self, vars: VariableStack[VariableBase]):
+        self.tensor_index = 0  # TDDO: rm this
         for var in vars:
             self.call_one(var)
 
@@ -149,7 +150,8 @@ class PyCodegen:
 
             output.append(self.create_load(self.graph_output_var))
             # TODO: rm hardcode
-            output.append(self.create_load_const(0))
+            output.append(self.create_load_const(self.tensor_index))
+            self.tensor_index += 1
             output.append(create_instruction("BINARY_SUBSCR"))
         elif value.var == None:
             output.append(self.create_load_const(None))

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import warnings
 
-from typing import Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable, Union
 
 import paddle
+
+if TYPE_CHECKING:
+    from .graph import Graph
 
 BaseArgumentTypes = Union[str, int, float, bool, complex, paddle.dtype, paddle.Tensor]
 base_types = BaseArgumentTypes.__args__  # type: ignore[attr-defined]
@@ -12,7 +15,7 @@ base_types = BaseArgumentTypes.__args__  # type: ignore[attr-defined]
 
 # Nodes represent a definition of a value in our graph of operators.
 class Node:
-    def __init__(self, graph, name, op, target, args, kwargs):
+    def __init__(self, graph: Graph, name, op, target, args, kwargs):
         self.meta = {}  # for storing metadata about the node
         self.graph = graph
         self.name = name  # unique name of value being created
