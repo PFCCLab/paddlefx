@@ -6,9 +6,9 @@ import types
 from typing import TYPE_CHECKING, Callable
 
 from .bytecode_transformation import Instruction, transform_code_object
-from .cache_manager import GuardedCode
+from .cache_manager import CodeCacheManager, GuardedCode
 from .paddle_utils import Tensor, skip_paddle_filename, skip_paddle_frame
-from .pyeval import CodeCacheManager, PyEval
+from .pyeval import PyEval
 from .utils import log_bytecode, log_code
 
 if TYPE_CHECKING:
@@ -33,7 +33,6 @@ def convert_frame(frame: types.FrameType, compiler_fn: Callable) -> GuardedCode 
     if skip_frame(frame):
         logging.debug(f"skip_frame: {frame}")
         return None
-
     # TODO: guard_fn is not declared in this scope
     guard_fn = None
 
