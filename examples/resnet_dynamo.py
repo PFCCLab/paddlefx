@@ -24,8 +24,17 @@ out = net(x)
 res = optimized_net(x)
 np.testing.assert_allclose(res.numpy(), out.numpy(), rtol=1e-5, atol=1e-6)
 
+import time
+
+start = time.time()
 for _ in range(10):
     out = net(x)
+end = time.time()
+print("net: ", end - start)
 
+start = time.time()
 for _ in range(10):
     res = optimized_net(x)
+
+end = time.time()
+print("optimized_net: ", end - start)

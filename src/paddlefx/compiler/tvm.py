@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from functools import reduce
+from typing import TYPE_CHECKING, Callable
 
 import paddle
 import paddle.device
@@ -9,71 +10,134 @@ from paddle import nn
 
 import paddlefx
 
-from .base import CompilerBase, CompilerError, paddle_dtype_to_str
+from .base import CompilerBase, CompilerError, SymbolTable, paddle_dtype_to_str
 
 if TYPE_CHECKING:
+    import tvm
+
     from tvm import te
 
-    from .base import SymbolTable
 
+def auto_tunning(symbol_table, target, workload):
+    from tvm import auto_scheduler
 
-def auto_scheduler(symbol_table, target):
     log_file = f"{hash(tuple(out.name for out in symbol_table.outputs))}.json"
     task = auto_scheduler.SearchTask(
-        func=auto_scheduler.register_workload(lambda: symbol_table.outputs),
+        func=auto_scheduler.register_workload(workload),
+        args=(1,),
         target=target,
     )
     tune_option = auto_scheduler.TuningOptions(
-        num_measure_trials=10,  # change this to 1000 to achieve the best performance
+        num_measure_trials=10,
         measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
-        # verbose=2,
+        verbose=1,
     )
     task.tune(tune_option)
     # Apply the best schedule
     schedule, args = task.apply_best(log_file)
-    print("Lowered TIR:")
-    print(tvm.lower(schedule, args, simple_mode=True))
+    return schedule, args
 
 
 class TVMCompiler(CompilerBase):
+    def __init__(
+        self,
+        *,
+        allow_fallback: bool = False,
+        full_graph: bool = False,
+        print_tabular_mode: str | None = None,
+        target: str | tvm.target.Target = "llvm",
+    ):
+        import tvm
+
+        super().__init__(
+            allow_fallback=allow_fallback,
+            full_graph=full_graph,
+            print_tabular_mode=print_tabular_mode,
+        )
+
+        self.target = tvm.target.Target(target) if isinstance(target, str) else target
+        self.target = tvm.target.Target(target="llvm -mtriple=x86_64-linux-gnu")
+        # self.target = tvm.target.Target(target="cuda", host="llvm")
+
+    def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
+        symbol_table = self.gen_symbol_table(gl, example_inputs)
+        return self.gen_compiled_func(symbol_table)
+
+    def gen_symbol_table(
+        self, gl: paddlefx.GraphLayer, example_inputs: list
+    ) -> SymbolTable[te.Tensor, paddle.Tensor]:
+        symbol_table: SymbolTable[te.Tensor, paddle.Tensor] = SymbolTable()
+        for node in gl.graph.nodes:
+            getattr(self, f"compile_{node.op}")(gl, node, symbol_table, example_inputs)
+        return symbol_table
+
     def gen_compiled_func(self, symbol_table: SymbolTable[te.Tensor, paddle.Tensor]):
         import tvm
 
         from tvm import te
 
-        device = paddle.device.get_device()
-        # device = "gpu"
-        if device == "cpu":
-            target = tvm.target.Target(target="llvm")
-            dev = tvm.cpu()
-        elif device == "gpu":
-            target = tvm.target.Target(target="cuda", host="llvm")
-            dev = tvm.cuda()
+        device = tvm.device(self.target.kind.name, 0)
+        if self.target.kind.name == "llvm":
+            # func = te.create_prim_func(symbol_table.all_symbols)
+            # ir_module_from_te = IRModule({"main": func})
+            # tasks, task_weights = auto_scheduler.extract_tasks(ir_module_from_te, None, self.target)
+
+            # for idx, task in enumerate(tasks):
+            #     print("========== Task %d  (workload key: %s) ==========" % (idx, task.workload_key))
+            #     print(task.compute_dag)
+
+            schedule = te.create_schedule([out.op for out in symbol_table.outputs])
+
+            args = list(symbol_table.all_symbols)
+
+            for out in symbol_table.outputs:
+                # print(schedule[out].op.axis, len(schedule[out].op.axis))
+                # print(schedule[out].op.reduce_axis, len(schedule[out].op.reduce_axis))
+                # fuse_axis = schedule[out].fuse(*schedule[out].op.axis)
+                # bx, tx = schedule[out].split(fuse_axis, factor=64)
+
+                schedule[out].unroll(schedule[out].op.axis[0])
+                if len(schedule[out].op.axis) >= 2:
+                    schedule[out].parallel(schedule[out].op.axis[1])
+                if len(schedule[out].op.axis) >= 3:
+                    schedule[out].vectorize(schedule[out].op.axis[2])
+
+                print(tvm.lower(schedule, args, simple_mode=True))
+
+        elif self.target.kind.name == "cuda":
+            # schedule, args = auto_tunning(symbol_table, self.target)
+            schedule = te.create_schedule([out.op for out in symbol_table.outputs])
+            args = list(symbol_table.all_symbols)
+            for name, out in symbol_table:
+                if isinstance(out.op, te.PlaceholderOp):
+                    continue
+                fused = schedule[out].fuse(*schedule[out].op.axis)
+                bx, tx = schedule[out].split(fused, factor=64)
+                schedule[out].bind(bx, te.thread_axis("blockIdx.x"))
+                schedule[out].bind(tx, te.thread_axis("threadIdx.x"))
+            raise CompilerError("cuda is not supported yet")
         else:
-            raise CompilerError(f"Unsupported device in tvm backend: {device}")
-        target = tvm.target.Target(target="llvm -mtriple=x86_64-linux-gnu")
+            raise CompilerError(f"{self.target.kind.name} is not supported yet")
 
-        schedule = te.create_schedule([out.op for out in symbol_table.outputs])
-
-        print("building tvm func")
         tvm_func = tvm.build(
             schedule,
-            [*symbol_table.inputs, *symbol_table.outputs],
-            target,
+            args,
+            self.target,
             name="tvm_func",
         )
         print("builded tvm func")
 
-        weights = [tvm.nd.array(p.numpy(), device=dev) for p in symbol_table.weights]
+        params = [
+            tvm.nd.array(p[1].numpy(), device=device) for p in symbol_table.params
+        ]
 
         def compiled_func(*args):
-            inputs = [tvm.nd.array(arg.numpy(), device=dev) for arg in args]
+            inputs = [tvm.nd.array(arg.numpy(), device=device) for arg in args]
             outputs = [
-                tvm.nd.empty(out.shape, out.dtype, device=dev)
+                tvm.nd.empty(out.shape, out.dtype, device=device)
                 for out in symbol_table.outputs
             ]
-            tvm_func(*inputs, *weights, *outputs)
-            len(outputs)
+            tvm_func(*inputs, *params, *outputs)
             return tuple(paddle.to_tensor(out.asnumpy()) for out in outputs)
 
         return compiled_func
@@ -112,7 +176,7 @@ class TVMCompiler(CompilerBase):
             module = getattr(module, names.pop(0))
         if isinstance(module, nn.Linear):
             # TODO: pre-load weight and bias
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_weight",
                 (
                     te.placeholder(
@@ -123,7 +187,7 @@ class TVMCompiler(CompilerBase):
                     module.weight.T,
                 ),
             )
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_bias",
                 (
                     te.placeholder(
@@ -140,13 +204,12 @@ class TVMCompiler(CompilerBase):
                 symbol_table[f"{node.name}_bias"],
             )
         elif isinstance(module, nn.Conv2D):
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_weight",
                 (
                     te.placeholder(
                         module.weight.shape,
                         paddle_dtype_to_str(module.weight.dtype),
-                        name=f"params_{node.name}_weight",
                     ),
                     module.weight,
                 ),
@@ -154,7 +217,7 @@ class TVMCompiler(CompilerBase):
 
             if module.bias is not None:
                 bias = module.bias.reshape((1, -1, 1, 1))
-                symbol_table.add_weight(
+                symbol_table.add_param(
                     f"{node.name}_bias",
                     (
                         te.placeholder(
@@ -165,15 +228,16 @@ class TVMCompiler(CompilerBase):
                         bias,
                     ),
                 )
+                symbol_table[f"temp_{node.name}_conv2d"] = topi.nn.conv2d(  # type: ignore
+                    symbol_table[str(node.args[0])],
+                    symbol_table[f"{node.name}_weight"],
+                    module._stride,
+                    module._updated_padding,
+                    module._dilation,
+                    module._data_format,
+                )
                 symbol_table[node.name] = topi.add(
-                    topi.nn.conv2d(
-                        symbol_table[str(node.args[0])],
-                        symbol_table[f"{node.name}_weight"],
-                        module._stride,
-                        module._updated_padding,
-                        module._dilation,
-                        module._data_format,
-                    ),
+                    symbol_table[f"temp_{node.name}_conv2d"],
                     symbol_table[f"{node.name}_bias"],
                 )
             else:
@@ -185,7 +249,7 @@ class TVMCompiler(CompilerBase):
                     module._dilation,
                 )
         elif isinstance(module, nn.BatchNorm2D):
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_weight",
                 (
                     te.placeholder(
@@ -196,7 +260,7 @@ class TVMCompiler(CompilerBase):
                     module.weight,
                 ),
             )
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_bias",
                 (
                     te.placeholder(
@@ -207,7 +271,7 @@ class TVMCompiler(CompilerBase):
                     module.bias,
                 ),
             )
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_mean",
                 (
                     te.placeholder(
@@ -218,7 +282,7 @@ class TVMCompiler(CompilerBase):
                     module._mean,
                 ),
             )
-            symbol_table.add_weight(
+            symbol_table.add_param(
                 f"{node.name}_variance",
                 (
                     te.placeholder(
@@ -297,8 +361,6 @@ class TVMCompiler(CompilerBase):
         elif target_name == "flatten":
             inp = symbol_table[str(node.args[0])]
             batch = inp.shape[0]
-            from functools import reduce
-
             shape = [batch, reduce(lambda x, y: x * y, inp.shape[1:])]
             symbol_table[node.name] = topi.reshape(
                 inp,

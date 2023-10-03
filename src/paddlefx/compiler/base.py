@@ -9,7 +9,7 @@ import paddle.device
 
 import paddlefx
 
-PlaceholderT = TypeVar("PlaceholderT")
+SymbolT = TypeVar("SymbolT")
 ValueT = TypeVar("ValueT")
 
 
@@ -35,45 +35,49 @@ class CompilerError(Exception):
 
 
 @dataclasses.dataclass
-class SymbolTable(Generic[PlaceholderT, ValueT]):
+class SymbolTable(Generic[SymbolT, ValueT]):
     def __init__(self):
-        self._symbol_table: dict[str, PlaceholderT] = {}
-        self._inputs: list[PlaceholderT] = []
-        self._weights: dict[str, tuple[PlaceholderT, ValueT]] = {}
-        self._outputs: tuple[PlaceholderT, ...] = ()
+        self._symbol_table: dict[str, SymbolT] = {}
+        self._inputs: list[SymbolT] = []
+        self._params: dict[str, tuple[SymbolT, ValueT]] = {}
+        self._outputs: list[SymbolT] = []
 
-    def __getitem__(self, key: str) -> PlaceholderT:
+    def __getitem__(self, key: str) -> SymbolT:
         return self._symbol_table[key]
 
-    def __setitem__(self, key: str, value: PlaceholderT):
+    def __setitem__(self, key: str, value: SymbolT):
         self._symbol_table[key] = value
 
     def __iter__(self):
         return iter(self._symbol_table.items())
 
     @property
-    def inputs(self) -> tuple[PlaceholderT, ...]:
-        return tuple(self._inputs + [value[0] for value in self._weights.values()])
+    def inputs(self) -> tuple[SymbolT, ...]:
+        return tuple(self._inputs)
 
-    def add_input(self, key: str, value: PlaceholderT):
+    def add_input(self, key: str, value: SymbolT):
         self._inputs.append(value)
         self._symbol_table[key] = value
 
     @property
-    def weights(self) -> tuple[ValueT, ...]:
-        return tuple(value[1] for value in self._weights.values())
+    def params(self) -> tuple[tuple[SymbolT, ValueT], ...]:
+        return tuple(self._params.values())
 
-    def add_weight(self, key: str, value: tuple[PlaceholderT, ValueT]):
-        self._weights[key] = value
+    def add_param(self, key: str, value: tuple[SymbolT, ValueT]):
+        self._params[key] = value
         self._symbol_table[key] = value[0]
 
     @property
-    def outputs(self) -> tuple[PlaceholderT, ...]:
-        return self._outputs
+    def outputs(self) -> tuple[SymbolT, ...]:
+        return tuple(self._outputs)
 
     @outputs.setter
-    def outputs(self, value: tuple[PlaceholderT, ...]):
-        self._outputs = value
+    def outputs(self, value: tuple[SymbolT, ...]):
+        self._outputs = list(value)
+
+    @property
+    def all_symbols(self) -> list[SymbolT]:
+        return self._inputs + [param[0] for param in self.params] + self._outputs
 
 
 class CompilerBase:
@@ -93,30 +97,16 @@ class CompilerBase:
         self.input_index = 0
         if self.print_tabular_mode is not None:
             gl.graph.print_tabular(print_mode=self.print_tabular_mode)
-        return self.compile(gl, example_inputs)
-
-    def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
-        symbol_table: SymbolTable = SymbolTable()
         try:
-            for node in gl.graph.nodes:
-                getattr(self, f"compile_{node.op}")(
-                    gl, node, symbol_table, example_inputs
-                )
-            return self.gen_compiled_func(symbol_table)
+            return self.compile(gl, example_inputs)
         except CompilerError as e:
             if self.allow_fallback:
-                print(
-                    f"CompilerError when compiling graph, useing default forward: {e}"
-                )
+                print(f"CompilerError when compiling graph, using default forward: {e}")
                 self.input_index = 0
                 return gl.forward
             raise e
-        except AttributeError as e:
-            raise AttributeError(
-                f"AttributeError when compiling graph, check if you use abstract class"
-            ) from e
 
-    def gen_compiled_func(self, symbol_table: SymbolTable):
+    def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
         raise NotImplementedError("CompilerBase is a abstract class")
 
 
