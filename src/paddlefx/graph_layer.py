@@ -74,7 +74,6 @@ def forward({', '.join(free_variables)}):
     self = self.root
 {body}
 """
-        # print(self.src)
         # install forward into the classes dictionary, this is what normally happens in the
         # 'class' statement
         # __new__ ensured that each instance has its own class
@@ -83,6 +82,10 @@ def forward({', '.join(free_variables)}):
         cls = type(self)
         for k, v in gbls.items():
             setattr(cls, k, v)
+
+        code = self.forward.__code__
+        self.forward = paddle.jit.to_static(self.forward)
+        self.forward.__code__ = code
 
     def get_source(self, update: bool = True):
         if update:

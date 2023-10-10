@@ -11,7 +11,7 @@ import paddlefx
 from paddlefx.compiler import DummyCompiler, TVMCompiler
 
 logging.getLogger().setLevel(logging.DEBUG)
-dummy_compier = DummyCompiler(full_graph=True, print_tabular_mode="rich")
+static_compier = DummyCompiler(full_graph=True, print_tabular_mode="rich")
 compiler = TVMCompiler(full_graph=True, print_tabular_mode="rich")
 
 
@@ -47,4 +47,4 @@ net = SimpleNet()
 
 in_a = paddle.rand([8, 16])
 in_b = paddle.rand([8, 16])
-check_func(net, in_a, in_b, backend=compiler)
+check_func(net, in_a, in_b, backend=static_compier)
