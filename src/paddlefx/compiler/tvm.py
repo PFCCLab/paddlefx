@@ -21,7 +21,7 @@ class TVMCompiler(CompilerBase):
         full_graph: bool = False,
         print_tabular_mode: str | None = None,
         target: str | tvm.target.Target = "llvm",
-        tune_mode: str = "auto_scheduler",
+        tune_mode: str | None = None,
     ):
         import tvm
 
