@@ -17,6 +17,7 @@ paddle.seed(1234)
 
 compiler = TVMCompiler(full_graph=True, print_tabular_mode="rich")
 net = resnet18(pretrained=True, num_classes=2)
+net.eval()  # from_paddle have no arg to set training mode.
 optimized_net = paddlefx.optimize(net, backend=compiler)
 
 x = paddle.rand([1, 3, 224, 224], dtype="float32")
