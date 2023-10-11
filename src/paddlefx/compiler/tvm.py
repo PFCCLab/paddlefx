@@ -41,12 +41,12 @@ class TVMCompiler(CompilerBase):
             if node.op == "placeholder":
                 shape_dict[node.name] = example_inputs[self.input_index].shape
                 self.input_index += 1
-        gl(*example_inputs)
-        model_path = ".model"
-        paddle.jit.save(gl, model_path)
+        static_func = paddle.jit.to_static(gl.forward)
+        static_func(*example_inputs)
+        model_path = f"~/.cache/paddlefx/model_{id(gl)}"
+        paddle.jit.save(static_func, model_path)
         translated_layer = paddle.jit.load(model_path)
         mod, params = relay.frontend.from_paddle(translated_layer)
-
         if self.tune_mode == "auto_scheduler":
             tasks, task_weights = auto_scheduler.extract_tasks(
                 mod["main"], params, self.target

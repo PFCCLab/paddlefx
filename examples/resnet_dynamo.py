@@ -12,10 +12,15 @@ import paddlefx
 from paddlefx.compiler.tvm import TVMCompiler
 
 paddle.seed(1234)
-
 # logging.getLogger().setLevel(logging.DEBUG)
 
-compiler = TVMCompiler(full_graph=True, print_tabular_mode="rich")
+compiler = TVMCompiler(
+    full_graph=True,
+    print_tabular_mode="rich",
+    tune_mode="auto_scheduler",
+    #    target="llvm -mcpu=core-avx2",
+    #    target="cuda",
+)
 net = resnet18(pretrained=True, num_classes=2)
 net.eval()  # from_paddle have no arg to set training mode.
 optimized_net = paddlefx.optimize(net, backend=compiler)

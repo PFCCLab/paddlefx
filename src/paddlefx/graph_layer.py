@@ -83,10 +83,6 @@ def forward({', '.join(free_variables)}):
         for k, v in gbls.items():
             setattr(cls, k, v)
 
-        code = self.forward.__code__
-        self.forward = paddle.jit.to_static(self.forward)
-        self.forward.__code__ = code
-
     def get_source(self, update: bool = True):
         if update:
             self._generate_forward()
