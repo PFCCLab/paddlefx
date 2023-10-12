@@ -7,7 +7,7 @@ import types
 from typing import Callable
 
 from ._eval_frame import set_eval_frame
-from .compiler import CompilerBase
+from .compiler import DummyCompiler
 from .convert_frame import convert_frame
 
 
@@ -46,7 +46,7 @@ def disable(fn=None):
 
 
 def optimize(
-    model: Callable | None = None, *, backend: Callable = CompilerBase()
+    model: Callable | None = None, *, backend: Callable = DummyCompiler()
 ) -> Callable:
     def _fn(backend: Callable):
         def __fn(frame: types.FrameType):

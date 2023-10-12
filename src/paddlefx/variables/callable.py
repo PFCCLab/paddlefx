@@ -76,7 +76,9 @@ class CallableVariable(VariableBase):
                     if fn is layers:
                         target = name
                         break
-                return obj_cls(node=graph.call_module(target, args, kwargs))
+                return TensorVariable(
+                    None, node=graph.call_module(target, args, kwargs)
+                )
         elif fn.__module__.startswith("paddle"):
             # TODO: support multiple ouputs and containers
             ot = type(args[0].var)
@@ -111,16 +113,16 @@ class CallableVariable(VariableBase):
                 obj_cls = type(args[0])
                 output = graph.call_function(fn, args, kwargs, ot)
                 return TensorVariable(None, node=output)
-            elif fn in [operator.gt]:
+            elif fn in [operator.gt, operator.lt, operator.ge, operator.le]:
                 ot = type(args[0].var)
                 obj_cls = type(args[0])
                 output = graph.call_function(fn, args, kwargs, ot)
-                return obj_cls(node=output)
+                return TensorVariable(None, node=output)
             elif fn in [operator.is_, operator.is_not]:
                 ot = type(args[0].var)
                 obj_cls = type(args[0])
                 output = graph.call_function(fn, args, kwargs, ot)
-                return obj_cls(node=output)
+                return TensorVariable(None, node=output)
             else:
                 raise NotImplementedError(f"builtin {fn} is not supported")
 

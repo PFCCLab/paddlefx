@@ -7,10 +7,12 @@ from paddle.vision.models import resnet18
 
 from paddlefx import symbolic_trace
 
+paddle.seed(1234)
+
 net = resnet18()
 traced_layer = symbolic_trace(net)
 
-example_input = paddle.rand([2, 3, 224, 224])
+example_input = paddle.rand([2, 3, 24, 24])
 orig_output = net(example_input)
 traced_output = traced_layer(example_input)
 

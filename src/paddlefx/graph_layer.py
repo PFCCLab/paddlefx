@@ -74,7 +74,6 @@ def forward({', '.join(free_variables)}):
     self = self.root
 {body}
 """
-        # print(self.src)
         # install forward into the classes dictionary, this is what normally happens in the
         # 'class' statement
         # __new__ ensured that each instance has its own class
