@@ -23,7 +23,10 @@ add_imports = ["from __future__ import annotations"]
 
 # https://beta.ruff.rs/docs/configuration/
 [tool.ruff]
-select = ["UP"]
+select = [
+    "UP",
+    "I"
+]
 ignore = ["UP015"]
 target-version = "py38"
 
