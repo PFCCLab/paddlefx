@@ -23,7 +23,7 @@ repos:
           # - "--remove-unused-variables"
           - "--remove-all-unused-imports"
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.254
+    rev: v0.0.291
     hooks:
     - id: ruff
       args: [--fix, --exit-non-zero-on-fix, --no-cache]
