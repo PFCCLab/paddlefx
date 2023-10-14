@@ -61,7 +61,7 @@ def hashable(obj) -> bool:
     try:
         hash(obj)
         return True
-    except TypeError as e:
+    except TypeError:
         return False
 
 

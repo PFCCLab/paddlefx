@@ -18,7 +18,8 @@ select = [
 ]
 ignore = [
     "UP015",
-    "Q000"
+    "Q000",
+    "F405"
 ]
 target-version = "py38"
 

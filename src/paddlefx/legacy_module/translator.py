@@ -128,7 +128,7 @@ class InstructionTranslatorBase:
             res = self.output.create_node('call_function', fn, args, kwargs)
             self.stack.push(res)
         elif is_custom_call:
-            raise NotImplementedError(f"custom_call is not supported")
+            raise NotImplementedError("custom_call is not supported")
         else:
             raise NotImplementedError(f"call function {fn} is not supported")
 
@@ -237,7 +237,7 @@ class InstructionTranslatorBase:
         self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
 
     def POP_TOP(self, inst: Instruction):
-        value = self.stack.pop()
+        self.stack.pop()
 
     def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()

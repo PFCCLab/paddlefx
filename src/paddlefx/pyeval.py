@@ -62,10 +62,10 @@ def break_graph_if_unsupported(*, push: int):
             state = self.get_state()
             try:
                 return inner_fn(self, inst)
-            except (BreakGraphError, NotImplementedError) as e:
+            except (BreakGraphError, NotImplementedError):
                 # TODO: remove NotImplementedError
                 logger.debug(
-                    f"break_graph_if_unsupported triggered compile", exc_info=True
+                    "break_graph_if_unsupported triggered compile", exc_info=True
                 )
 
                 if not isinstance(self, PyEval):
