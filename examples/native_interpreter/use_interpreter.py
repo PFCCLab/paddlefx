@@ -21,8 +21,8 @@ print(f">> python IR for {net.__name__}")
 traced_layer.graph.print_tabular()
 
 # the very simple IR we want to lower fx graph to
-# each instruction is a list of string of:  operation, left_operand, right_operand, result
-# only two op supported: add, mul
+# each instruction is a list of string of:  operation, left_operand,
+# right_operand, result only two op supported: add, mul
 input_names = []
 instructions = []
 
