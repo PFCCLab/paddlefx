@@ -6,6 +6,7 @@ import paddle
 import paddle.device
 import tvm
 
+from appdirs import user_cache_dir
 from loguru import logger
 from tvm import auto_scheduler, relay
 
@@ -44,7 +45,7 @@ class TVMCompiler(CompilerBase):
                 self.input_index += 1
         static_func = paddle.jit.to_static(gl.forward)
         static_func(*example_inputs)
-        model_path = f"~/.cache/paddlefx/model_{id(gl)}"
+        model_path = f"{user_cache_dir('paddlefx')}/paddle_static_model/{id(gl)}"
         paddle.jit.save(static_func, model_path)
         translated_layer = paddle.jit.load(model_path)
         mod, params = relay.frontend.from_paddle(translated_layer)
