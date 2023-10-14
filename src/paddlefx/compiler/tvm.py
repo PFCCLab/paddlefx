@@ -6,6 +6,7 @@ import paddle
 import paddle.device
 import tvm
 
+from loguru import logger
 from tvm import auto_scheduler, relay
 
 import paddlefx
@@ -53,11 +54,10 @@ class TVMCompiler(CompilerBase):
             )
 
             for idx, task in enumerate(tasks):
-                print(
-                    "========== Task %d  (workload key: %s) =========="
-                    % (idx, task.workload_key)
+                logger.info(
+                    f"========== Task {idx}  (workload key: {task.workload_key}) =========="
                 )
-                print(task.compute_dag)
+                logger.info(task.compute_dag)
 
             tuner = auto_scheduler.TaskScheduler(tasks, task_weights)
             tune_option = auto_scheduler.TuningOptions(

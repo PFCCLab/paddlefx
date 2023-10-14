@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import operator
 import types
 
@@ -8,6 +7,8 @@ from typing import Any
 
 import paddle
 import paddle.nn
+
+from loguru import logger
 
 from ..bytecode_transformation import Instruction, create_instruction
 from ..output_graph import OutputGraph
@@ -323,7 +324,7 @@ class InstructionTranslator(InstructionTranslatorBase):
         if not hasattr(self, inst.opname):
             raise NotImplementedError(f"missing: {inst.opname}")
 
-        logging.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
+        logger.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
         getattr(self, inst.opname)(inst)
 
     def run(self):

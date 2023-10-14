@@ -4,12 +4,13 @@ import copy
 import dis
 import functools
 import inspect
-import logging
 import operator
 import types
 
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple
+
+from loguru import logger
 
 from .bytecode_analysis import livevars_analysis
 from .bytecode_transformation import (
@@ -63,7 +64,7 @@ def break_graph_if_unsupported(*, push: int):
                 return inner_fn(self, inst)
             except (BreakGraphError, NotImplementedError) as e:
                 # TODO: remove NotImplementedError
-                logging.debug(
+                logger.debug(
                     f"break_graph_if_unsupported triggered compile", exc_info=True
                 )
 
@@ -177,12 +178,12 @@ class PyEvalBase:
             self.next_instruction = None
         if inst.starts_line and self.lineno != inst.starts_line:
             self.lineno = inst.starts_line
-            logging.debug(f"TRACE starts_line {self.f_code.co_filename}:{self.lineno}")
+            logger.debug(f"TRACE starts_line {self.f_code.co_filename}:{self.lineno}")
 
         if len(self.stack) == 0 and isinstance(self, PyEval):
             self.checkpoint = inst, self.get_state()
 
-        logging.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
+        logger.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
 
         try:
             if not hasattr(self, inst.opname):
@@ -194,12 +195,12 @@ class PyEvalBase:
         except NotImplementedError as e:
             if self.checkpoint is None:
                 raise
-            logging.debug(f"!! NotImplementedError: {e}")
+            logger.debug(f"!! NotImplementedError: {e}")
         except Exception as e:
             raise e
 
         # fallback
-        logging.debug(f"graph break from instruction: \n{format_instruction(inst)}")
+        logger.debug(f"graph break from instruction: \n{format_instruction(inst)}")
         assert not self.output.instructions
         assert self.checkpoint is not None
         continue_inst, state = self.checkpoint
@@ -596,8 +597,8 @@ class InlinePyEval(PyEvalBase):
         if code.co_name in ("__setitem__", "__setattr__"):
             raise NotImplementedError(f"inline_call {code.co_name}")
 
-        logging.debug(f"INLINING {code}")
-        log_code(code, "INLINE_BYTECODE", log_fn=logging.debug)
+        logger.debug(f"INLINING {code}")
+        log_code(code, "INLINE_BYTECODE", log_fn=logger.debug)
 
         bound = inspect.signature(func.var).bind(*args, **kwargs)
         bound.apply_defaults()
@@ -614,7 +615,7 @@ class InlinePyEval(PyEvalBase):
         try:
             tracer.run()
         except Exception:
-            logging.debug(f"FAILED INLINING {code}")
+            logger.debug(f"FAILED INLINING {code}")
             raise
         assert tracer.symbolic_result is not None
 
@@ -622,7 +623,7 @@ class InlinePyEval(PyEvalBase):
             # Merge symbolic_globals back if parent and child are in the same namespace
             parent.symbolic_globals.update(tracer.symbolic_globals)
 
-        logging.debug(f"DONE INLINING {code}")
+        logger.debug(f"DONE INLINING {code}")
         return tracer.symbolic_result
 
     def RETURN_VALUE(self, inst: Instruction):
@@ -736,7 +737,7 @@ class PyEval(PyEvalBase):
             instructions[:] = prefix + instructions
 
         new_code = transform_code_object(self.f_code, update)
-        log_code(new_code, f"RESUME_AT {name}", log_fn=logging.debug)
+        log_code(new_code, f"RESUME_AT {name}", log_fn=logger.debug)
 
         self.f_globals[name] = types.FunctionType(new_code, self.f_globals, name)
 

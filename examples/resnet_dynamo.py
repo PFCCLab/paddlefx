@@ -12,7 +12,7 @@ import paddlefx
 from paddlefx.compiler.tvm import TVMCompiler
 
 paddle.seed(1234)
-# logging.getLogger().setLevel(logging.DEBUG)
+
 
 compiler = TVMCompiler(
     full_graph=True,
