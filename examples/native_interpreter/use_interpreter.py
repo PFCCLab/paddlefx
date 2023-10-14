@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import paddle
 
-from build import myinterpreter
-
 import paddlefx
 
+from build import myinterpreter
 from paddlefx import symbolic_trace
 
 

@@ -9,26 +9,22 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[tool.black]
-skip-string-normalization = true
-# default value may too big to run
-workers = 4
-
-# https://pycqa.github.io/isort/docs/configuration/options.html
-[tool.isort]
-profile = "black"
-lines_between_types = 1
-known_first_party = ["paddlefx"]
-add_imports = ["from __future__ import annotations"]
-
 # https://beta.ruff.rs/docs/configuration/
 [tool.ruff]
 select = [
     "UP",
     "I"
 ]
-ignore = ["UP015"]
+ignore = [
+    "UP015",
+    "Q000"
+]
 target-version = "py38"
+
+[tool.ruff.isort]
+lines-between-types = 1
+known-first-party = ["paddlefx"]
+required-imports = ["from __future__ import annotations"]
 
 [tool.pytest.ini_options]
 minversion = "7.0.0"
