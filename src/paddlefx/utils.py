@@ -14,9 +14,7 @@ if TYPE_CHECKING:
     from .bytecode_transformation import Instruction
 
 logger.remove()
-logger.add(
-    sys.stdout, level=os.environ.get("LOG_LEVEL", "INFO")
-)
+logger.add(sys.stdout, level=os.environ.get("LOG_LEVEL", "INFO"))
 
 
 def format_bytecode(prefix, name, filename, line_no, code):

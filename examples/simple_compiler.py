@@ -12,8 +12,6 @@ from paddlefx.compiler import TVMCompiler
 paddle.seed(1234)
 
 
-
-
 def inner_func(x, y):
     p = paddle.add(x, y)
     # q = paddle._C_ops.subtract(x, y)  # static unsupported
