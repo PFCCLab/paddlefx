@@ -9,6 +9,11 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[tool.black]
+skip-string-normalization = true
+# default value may too big to run
+workers = 4
+
 # https://beta.ruff.rs/docs/configuration/
 [tool.ruff]
 exclude = [".cmake-format.py"]
@@ -19,7 +24,6 @@ select = [
 ]
 ignore = [
     "UP015",
-    "Q000",
     "F405"
 ]
 target-version = "py38"
