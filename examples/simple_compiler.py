@@ -11,8 +11,6 @@ from paddlefx.compiler import TVMCompiler
 
 paddle.seed(1234)
 
-# logging.getLogger().setLevel(logging.DEBUG)
-
 
 def inner_func(x, y):
     p = paddle.add(x, y)

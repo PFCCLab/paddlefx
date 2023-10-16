@@ -1,19 +1,10 @@
 from __future__ import annotations
 
-import logging
-
-# ignore DeprecationWarning from `pkg_resources`
-logging.captureWarnings(True)
-
-
 import paddle
 import paddle.nn
 
 import paddlefx
 import paddlefx.utils
-
-# logging.basicConfig(level=logging.DEBUG, format="%(message)s")
-logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def my_compiler(gl: paddlefx.GraphLayer, example_inputs: list[paddle.Tensor] = None):

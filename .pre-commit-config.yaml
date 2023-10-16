@@ -10,12 +10,8 @@ repos:
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: trailing-whitespace
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-  - repo: https://github.com/psf/black
-    rev: 23.1.0
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 23.9.1
     hooks:
       - id: black
   - repo: https://github.com/PyCQA/autoflake
@@ -31,10 +27,10 @@ repos:
           # - "--remove-unused-variables"
           - "--remove-all-unused-imports"
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.254
+    rev: v0.0.292
     hooks:
-    - id: ruff
-      args: [--fix, --exit-non-zero-on-fix, --no-cache]
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix, --no-cache]
   - repo: https://github.com/asottile/yesqa
     rev: v1.4.0
     hooks:

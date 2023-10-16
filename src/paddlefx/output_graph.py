@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import itertools
-import logging
 import types
 
 from typing import TYPE_CHECKING, Callable, OrderedDict
 
 import paddle
+
+from loguru import logger
 
 from .bytecode_transformation import Instruction, create_instruction
 from .codegen import PyCodegen
@@ -109,7 +110,7 @@ class OutputGraph:
         log_code(
             compiled_fn.__code__,
             f"COMPILED_FN {compiled_fn_name}",
-            log_fn=logging.debug,
+            log_fn=logger.debug,
         )
         compiled_fn = disable(compiled_fn)
         tx.f_globals[compiled_fn_name] = compiled_fn
@@ -120,7 +121,7 @@ class OutputGraph:
         return cg.instructions
 
     def compile_subgraph(self, tx: PyEvalBase):
-        logging.debug(
+        logger.debug(
             f"start compile_subgraph, current_instruction: \n{format_instruction(tx.current_instruction)}"  # type: ignore
         )
         tx.prune_dead_locals()
@@ -164,4 +165,4 @@ class OutputGraph:
         self.add_output_instructions(
             [PyCodegen(tx).create_store(var) for var in reversed(restore_vars)]
         )
-        log_instructions(self.instructions, 'COMPILE_SUBGRAPH', log_fn=logging.debug)
+        log_instructions(self.instructions, 'COMPILE_SUBGRAPH', log_fn=logger.debug)

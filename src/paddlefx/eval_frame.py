@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import functools
-import logging
 import types
 
 from typing import Callable
+
+from loguru import logger
 
 from ._eval_frame import set_eval_frame
 from .compiler import DummyCompiler
@@ -54,7 +55,7 @@ def optimize(
                 guarded_code = convert_frame(frame, backend)
                 return guarded_code
             except NotImplementedError as e:
-                logging.debug(f"!! NotImplementedError: {e}")
+                logger.debug(f"!! NotImplementedError: {e}")
             except Exception:
                 raise
             return None

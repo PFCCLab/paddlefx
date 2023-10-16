@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import logging
 import types
 
 from typing import TYPE_CHECKING, Callable
+
+from loguru import logger
 
 from .bytecode_transformation import Instruction, transform_code_object
 from .cache_manager import CodeCacheManager, GuardedCode
@@ -31,7 +32,7 @@ def skip_frame(frame: types.FrameType) -> bool:
 
 def convert_frame(frame: types.FrameType, compiler_fn: Callable) -> GuardedCode | None:
     if skip_frame(frame):
-        logging.debug(f"skip_frame: {frame}")
+        logger.debug(f"skip_frame: {frame}")
         return None
     # TODO: guard_fn is not declared in this scope
     guard_fn = None
@@ -45,12 +46,12 @@ def convert_frame(frame: types.FrameType, compiler_fn: Callable) -> GuardedCode 
         code_options.update(tracer.output.code_options)
         instructions[:] = tracer.output.instructions
 
-    logging.info(f"convert_frame: {frame}")
+    logger.info(f"convert_frame: {frame}")
     code = frame.f_code
     log_code(code, "ORIGINAL_BYTECODE")
 
     if (cached_code := CodeCacheManager.get_cache(frame)) is not None:
-        logging.info(f"cached_code: {cached_code}")
+        logger.info(f"cached_code: {cached_code}")
         return cached_code
 
     # TODO: rm torch code dependency

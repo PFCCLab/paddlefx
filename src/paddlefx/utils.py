@@ -1,25 +1,31 @@
 from __future__ import annotations
 
 import dis
-import logging
+import os
+import sys
 import traceback
 import types
 
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 if TYPE_CHECKING:
     from .bytecode_transformation import Instruction
+
+logger.remove()
+logger.add(sys.stdout, level=os.environ.get("LOG_LEVEL", "INFO"))
 
 
 def format_bytecode(prefix, name, filename, line_no, code):
     return f"{prefix} {name} {filename} line {line_no} \n{dis.Bytecode(code).dis()}"
 
 
-def log_bytecode(prefix, name, filename, line_no, code, log_fn=logging.info):
+def log_bytecode(prefix, name, filename, line_no, code, log_fn=logger.info):
     log_fn(format_bytecode(prefix, name, filename, line_no, code))
 
 
-def log_code(code: types.CodeType, prefix='', log_fn=logging.info):
+def log_code(code: types.CodeType, prefix='', log_fn=logger.info):
     log_bytecode(
         prefix, code.co_name, code.co_filename, code.co_firstlineno, code, log_fn=log_fn
     )
@@ -38,7 +44,7 @@ def format_instruction(inst: dis.Instruction | Instruction):
 def log_instructions(
     instructions: list[dis.Instruction] | list[Instruction],
     prefix='',
-    log_fn=logging.info,
+    log_fn=logger.info,
 ):
     log_fn(f"{prefix}")
     for inst in instructions:
@@ -53,7 +59,7 @@ def hashable(obj) -> bool:
     try:
         hash(obj)
         return True
-    except TypeError as e:
+    except TypeError:
         return False
 
 

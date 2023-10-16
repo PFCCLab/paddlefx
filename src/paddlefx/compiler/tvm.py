@@ -6,6 +6,8 @@ import paddle
 import paddle.device
 import tvm
 
+from appdirs import user_cache_dir
+from loguru import logger
 from tvm import auto_scheduler, relay
 
 import paddlefx
@@ -36,6 +38,8 @@ class TVMCompiler(CompilerBase):
         self.tune_mode = tune_mode
 
     def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
+        cache_path = user_cache_dir('paddlefx')
+
         shape_dict = {}
         for node in gl.graph.nodes:
             if node.op == "placeholder":
@@ -43,7 +47,7 @@ class TVMCompiler(CompilerBase):
                 self.input_index += 1
         static_func = paddle.jit.to_static(gl.forward)
         static_func(*example_inputs)
-        model_path = f"~/.cache/paddlefx/model_{id(gl)}"
+        model_path = f"{cache_path}/paddle_static_model/{id(gl)}"
         paddle.jit.save(static_func, model_path)
         translated_layer = paddle.jit.load(model_path)
         mod, params = relay.frontend.from_paddle(translated_layer)
@@ -53,21 +57,21 @@ class TVMCompiler(CompilerBase):
             )
 
             for idx, task in enumerate(tasks):
-                print(
-                    "========== Task %d  (workload key: %s) =========="
-                    % (idx, task.workload_key)
+                logger.info(
+                    f"========== Task {idx}  (workload key: {task.workload_key}) =========="
                 )
-                print(task.compute_dag)
+                logger.info(task.compute_dag)
 
             tuner = auto_scheduler.TaskScheduler(tasks, task_weights)
+            log_file_path = f"{cache_path}/paddle_static_model/{id(gl)}"
             tune_option = auto_scheduler.TuningOptions(
                 num_measure_trials=200,
                 early_stopping=10,
-                measure_callbacks=[auto_scheduler.RecordToFile("log_file")],
+                measure_callbacks=[auto_scheduler.RecordToFile(log_file_path)],
             )
 
             tuner.tune(tune_option)
-            with auto_scheduler.ApplyHistoryBest("log_file"):
+            with auto_scheduler.ApplyHistoryBest(log_file_path):
                 with tvm.transform.PassContext(
                     opt_level=3, config={"relay.backend.use_auto_scheduler": True}
                 ):

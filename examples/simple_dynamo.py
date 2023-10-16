@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 import numpy as np
 import paddle
 import paddle.nn
@@ -10,7 +8,6 @@ import paddlefx
 
 from paddlefx.compiler import DummyCompiler, TVMCompiler
 
-logging.getLogger().setLevel(logging.DEBUG)
 static_compier = DummyCompiler(full_graph=True, print_tabular_mode="rich")
 compiler = TVMCompiler(full_graph=True, print_tabular_mode="rich")
 

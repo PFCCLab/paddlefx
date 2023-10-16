@@ -11,8 +11,6 @@ import paddle.nn
 
 import paddlefx
 
-logging.basicConfig(level=logging.DEBUG, format="%(message)s")
-
 # TODO: support grpah break for `print`
 
 

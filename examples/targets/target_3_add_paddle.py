@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-import logging
-
-# ignore DeprecationWarning from `pkg_resources`
-logging.captureWarnings(True)
-
 import paddle
 import paddle._C_ops
 
 import paddlefx
 
 from paddlefx.compiler import TVMCompiler
-
-logging.basicConfig(level=logging.DEBUG, format="%(message)s")
-# logging.basicConfig(level=logging.INFO, format="%(message)s")
-
-paddle.seed(1234)
 
 
 def func(x, y):

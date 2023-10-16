@@ -67,7 +67,7 @@ class CallableVariable(VariableBase):
                 return result
             else:  # basic layer
                 ot = type(args[0].var)
-                obj_cls = type(args[0])
+
                 target = ''
                 model = (
                     tx.f_locals['self'] if 'self' in tx.f_locals else globals()['self']
@@ -82,7 +82,7 @@ class CallableVariable(VariableBase):
         elif fn.__module__.startswith("paddle"):
             # TODO: support multiple ouputs and containers
             ot = type(args[0].var)
-            obj_cls = type(args[0])
+
             output = graph.call_function(fn, args, kwargs, ot)
             return TensorVariable(None, node=output)
         elif inspect.isbuiltin(fn):
@@ -95,7 +95,7 @@ class CallableVariable(VariableBase):
                     if isinstance(attr, types.MethodType):
                         # For method variables
                         ot = type(args[0].var)
-                        obj_cls = type(args[0])
+
                         return CallableVariable(fn, tx=tx)
                     else:
                         # the attr could be callable function
@@ -110,17 +110,17 @@ class CallableVariable(VariableBase):
                 operator.iadd,
             ]:
                 ot = type(args[0].var)
-                obj_cls = type(args[0])
+
                 output = graph.call_function(fn, args, kwargs, ot)
                 return TensorVariable(None, node=output)
             elif fn in [operator.gt, operator.lt, operator.ge, operator.le]:
                 ot = type(args[0].var)
-                obj_cls = type(args[0])
+
                 output = graph.call_function(fn, args, kwargs, ot)
                 return TensorVariable(None, node=output)
             elif fn in [operator.is_, operator.is_not]:
                 ot = type(args[0].var)
-                obj_cls = type(args[0])
+
                 output = graph.call_function(fn, args, kwargs, ot)
                 return TensorVariable(None, node=output)
             else:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import operator
 import types
 
@@ -8,6 +7,8 @@ from typing import Any
 
 import paddle
 import paddle.nn
+
+from loguru import logger
 
 from ..bytecode_transformation import Instruction, create_instruction
 from ..output_graph import OutputGraph
@@ -127,7 +128,7 @@ class InstructionTranslatorBase:
             res = self.output.create_node('call_function', fn, args, kwargs)
             self.stack.push(res)
         elif is_custom_call:
-            raise NotImplementedError(f"custom_call is not supported")
+            raise NotImplementedError("custom_call is not supported")
         else:
             raise NotImplementedError(f"call function {fn} is not supported")
 
@@ -236,7 +237,7 @@ class InstructionTranslatorBase:
         self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
 
     def POP_TOP(self, inst: Instruction):
-        value = self.stack.pop()
+        self.stack.pop()
 
     def STORE_FAST(self, inst: Instruction):
         self.f_locals[inst.argval] = self.stack.pop()
@@ -323,7 +324,7 @@ class InstructionTranslator(InstructionTranslatorBase):
         if not hasattr(self, inst.opname):
             raise NotImplementedError(f"missing: {inst.opname}")
 
-        logging.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
+        logger.debug(f"TRACE {inst.opname} {inst.argval} {self.stack}")
         getattr(self, inst.opname)(inst)
 
     def run(self):
