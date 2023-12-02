@@ -17,21 +17,33 @@ workers = 4
 # https://beta.ruff.rs/docs/configuration/
 [tool.ruff]
 exclude = [".cmake-format.py"]
+target-version = "py38"
+
+[tool.ruff.lint]
 select = [
     "UP",
     "F",
-    "I"
+    "I",
+    # "B",
+    # "C4",
+    # "PGH",
+    # "RUF",
+    "W",
+    "YTT"
 ]
 ignore = [
     "UP015",
     "F405"
 ]
-target-version = "py38"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 lines-between-types = 1
 known-first-party = ["paddlefx"]
 required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "I002"]
+"setup.py" = ["F401", "I002"]
 
 [tool.pytest.ini_options]
 minversion = "7.0.0"

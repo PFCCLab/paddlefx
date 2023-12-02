@@ -5,7 +5,7 @@ import collections
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from .bytecode_transformation import *  # noqa
+from .bytecode_transformation import *  # noqa: F403
 from .source import LocalSource
 from .variable_stack import VariableStack
 from .variables.base import TensorVariable

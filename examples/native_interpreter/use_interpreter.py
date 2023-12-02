@@ -38,24 +38,24 @@ def lower_to_native_interpreter(orig_net):
         target, args, out_name = n.target, n.args, n.name
         assert len(n.kwargs) == 0, "kwargs currently not supported"
 
-        if n.op == 'placeholder':
+        if n.op == "placeholder":
             input_names.append(target)
-        elif n.op == 'call_function':
+        elif n.op == "call_function":
             assert target in target_to_name, "Unsupported call target " + target
             arg_names = []
             for arg in args:
                 if not isinstance(arg, paddlefx.Node):
-                    raise RuntimeError('Unsupported arg' + arg)
+                    raise RuntimeError("Unsupported arg" + arg)
                 else:
                     arg_names.append(arg.name)
             instructions.append(
                 [target_to_name[target], arg_names[0], arg_names[1], out_name]
             )
-        elif n.op == 'output':
+        elif n.op == "output":
             # not handled output node for now
             pass
         else:
-            raise RuntimeError('Unsupported opcode ' + n.op)
+            raise RuntimeError("Unsupported opcode " + n.op)
 
 
 lower_to_native_interpreter(net)

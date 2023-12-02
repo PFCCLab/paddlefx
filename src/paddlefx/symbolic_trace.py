@@ -27,7 +27,7 @@ def _find_module(root, m):
         if m is p:
             return n
         children_queue.extend((f"{n}.{k}", v) for k, v in p.named_children())
-    raise NameError('module is not installed as a submodule')
+    raise NameError("module is not installed as a submodule")
 
 
 def _is_leaf_module(m) -> bool:
@@ -146,7 +146,7 @@ def _create_wrapped_func(orig_fn):
         proxy = _find_proxy(args, kwargs)
         if proxy is not None:
             return_proxy = _create_proxy(
-                proxy.tracer, 'call_function', orig_fn, args, kwargs
+                proxy.tracer, "call_function", orig_fn, args, kwargs
             )
             return return_proxy
         return orig_fn(*args, **kwargs)
@@ -207,9 +207,9 @@ class Tracer:
                 # Run original __call__ to trace the submodules
                 return orig_module_call(mod, *args, **kwargs)
             target = _find_module(root, mod)
-            name = target.replace('.', '_')
+            name = target.replace(".", "_")
             ### change it to create proxy in proxy.py
-            return _create_proxy(self, 'call_module', target, args, kwargs, name)
+            return _create_proxy(self, "call_module", target, args, kwargs, name)
 
         with _Patcher() as patcher:
             # step1: patch layer call
@@ -225,7 +225,7 @@ class Tracer:
         return GraphLayer(root, self.graph)
 
     def _proxy_placeholder(self, name):
-        return self.create_proxy('placeholder', name, (), {})
+        return self.create_proxy("placeholder", name, (), {})
 
     def create_node(self, op, target, args=None, kwargs=None, name=None):
         return self.graph.create_node(op, target, args, kwargs, name)

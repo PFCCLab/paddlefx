@@ -38,7 +38,7 @@ class TVMCompiler(CompilerBase):
         self.tune_mode = tune_mode
 
     def compile(self, gl: paddlefx.GraphLayer, example_inputs: list) -> Callable:
-        cache_path = user_cache_dir('paddlefx')
+        cache_path = user_cache_dir("paddlefx")
 
         shape_dict = {}
         for node in gl.graph.nodes:

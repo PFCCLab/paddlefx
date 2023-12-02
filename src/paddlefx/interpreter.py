@@ -5,7 +5,7 @@ from typing import Any, Iterator
 from .graph_layer import GraphLayer
 from .node import Node, map_arg
 
-__all__ = ['Interpreter']
+__all__ = ["Interpreter"]
 
 
 class Interpreter:
@@ -32,13 +32,13 @@ class Interpreter:
                 self.env[node] = self.run_node(node)
             except Exception as e:
                 msg = f"While executing {node}"
-                msg = f'{e.args[0]}\n\n{msg}' if e.args else str(msg)
+                msg = f"{e.args[0]}\n\n{msg}" if e.args else str(msg)
                 e.args = (msg,) + e.args[1:]
                 if isinstance(e, KeyError):
                     raise RuntimeError(*e.args) from e
                 raise
 
-            if node.op == 'output':
+            if node.op == "output":
                 output_val = self.env[node]
                 return output_val
 
@@ -75,7 +75,7 @@ class Interpreter:
             Any: The argument value that was retrieved.
         """
         assert isinstance(target, str)
-        if target.startswith('*'):
+        if target.startswith("*"):
             # For a starred parameter e.g. `*args`, retrieve all
             # remaining values from the args list.
             return list(self.args_iter)
@@ -87,7 +87,7 @@ class Interpreter:
                     return args[0]
                 else:
                     raise RuntimeError(
-                        f'Expected positional argument for parameter {target}, but one was not passed in!'
+                        f"Expected positional argument for parameter {target}, but one was not passed in!"
                     ) from si
 
     def get_attr(self, target, args: tuple, kwargs: dict[str, Any]) -> Any:
@@ -182,7 +182,7 @@ class Interpreter:
         Return:
             Any: The value of the attribute.
         """
-        target_atoms = target.split('.')
+        target_atoms = target.split(".")
         attr_itr = self.module
         for i, atom in enumerate(target_atoms):
             if not hasattr(attr_itr, atom):
@@ -221,8 +221,8 @@ class Interpreter:
         def load_arg(n_arg: Node) -> Any:
             if n_arg not in self.env:
                 raise RuntimeError(
-                    f'Node {n} referenced nonexistent value {n_arg}! Run Graph.lint() '
-                    f'to diagnose such issues'
+                    f"Node {n} referenced nonexistent value {n_arg}! Run Graph.lint() "
+                    f"to diagnose such issues"
                 )
             return self.env[n_arg]
 

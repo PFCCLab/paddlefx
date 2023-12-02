@@ -431,7 +431,7 @@ class PyEvalBase:
     def POP_JUMP_IF_FALSE(self, inst: Instruction):
         value = self.stack.pop()
 
-        if str(value) == 'gt':
+        if str(value) == "gt":
             self.output.graph.erase_node(value.node)
             args = value.node.args
             value = operator.gt(args[0].var, args[1].var)
@@ -439,7 +439,7 @@ class PyEvalBase:
                 self.jump(inst)
             return
 
-        if str(value) == 'is_':
+        if str(value) == "is_":
             self.output.graph.erase_node(value.node)
             args = value.node.args
             value = operator.is_(args[0].var, args[1].var)
@@ -447,7 +447,7 @@ class PyEvalBase:
                 self.jump(inst)
             return
 
-        if str(value).startswith('is_not'):
+        if str(value).startswith("is_not"):
             self.output.graph.erase_node(value.node)
             args = value.node.args
             value = operator.is_not(args[0].var, args[1].var)
@@ -567,7 +567,7 @@ class InlinePyEval(PyEvalBase):
         func: CallableVariable,
     ):
         f_globals = func.var.__globals__
-        f_builtins = f_globals['__builtins__']
+        f_builtins = f_globals["__builtins__"]
         if not isinstance(f_builtins, dict):
             f_builtins = f_builtins.__dict__
 
@@ -684,7 +684,7 @@ class PyEval(PyEvalBase):
             if (
                 isinstance(var.source, LocalSource)
                 and not var.source.local_name.startswith("___stack")
-                and var.source.local_name not in ['self']
+                and var.source.local_name not in ["self"]
             ):
                 node = self.output.graph.placeholder(var.source.local_name)
                 node.meta["grapharg"] = GraphArg(example=var.var)

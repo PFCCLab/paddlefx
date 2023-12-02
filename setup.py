@@ -21,7 +21,7 @@ def _get_version():
 
 
 def _get_install_requires():
-    with open('requirements.txt', 'r') as f:
+    with open("requirements.txt", "r") as f:
         install_requires = f.readlines()
     return install_requires
 
@@ -31,14 +31,14 @@ def _run_cmd(cmd: str, cwd=None):
         cmd,
         stdout=subprocess.PIPE,
         shell=True,
-        executable='/bin/bash',
+        executable="/bin/bash",
         cwd=cwd,
     )
     stdout, _ = p.communicate()
     out = stdout.decode().strip()
     print(out)
     if p.returncode != 0:
-        raise Exception(f'CMD {cmd} failed')
+        raise Exception(f"CMD {cmd} failed")
     else:
         return 0
 
@@ -48,36 +48,36 @@ class CMakeBuildExt(build_ext):
         os.makedirs(self.build_temp, exist_ok=True)
         os.makedirs(self.build_lib, exist_ok=True)
 
-        debug = int(os.environ.get('DEBUG', 0)) if self.debug is None else self.debug
-        build_type = 'Debug' if debug else 'Release'
+        debug = int(os.environ.get("DEBUG", 0)) if self.debug is None else self.debug
+        build_type = "Debug" if debug else "Release"
 
         cmake_args = (
-            f'-DCMAKE_BUILD_TYPE={build_type} -DPython3_EXECUTABLE={sys.executable} '
+            f"-DCMAKE_BUILD_TYPE={build_type} -DPython3_EXECUTABLE={sys.executable} "
         )
-        cmake_args += f'-DCMAKE_INSTALL_PREFIX={HERE}/src/paddlefx '
-        if 'CMAKE_ARGS' in os.environ:
-            cmake_args += os.environ.get('CMAKE_ARGS', '')
-            cmake_args += ' '
+        cmake_args += f"-DCMAKE_INSTALL_PREFIX={HERE}/src/paddlefx "
+        if "CMAKE_ARGS" in os.environ:
+            cmake_args += os.environ.get("CMAKE_ARGS", "")
+            cmake_args += " "
 
         try:
             import ninja
 
-            ninja_executable_path = _osp.join(ninja.BIN_DIR, 'ninja')
-            cmake_args += f'-GNinja -DCMAKE_MAKE_PROGRAM={ninja_executable_path} '
+            ninja_executable_path = _osp.join(ninja.BIN_DIR, "ninja")
+            cmake_args += f"-GNinja -DCMAKE_MAKE_PROGRAM={ninja_executable_path} "
         except ImportError:
-            raise Exception('please install ninja first.')
+            raise Exception("please install ninja first.")
 
-        cmd = f'cmake {cmake_args} -S{HERE} -B{self.build_temp};'
-        cmd += f'cmake --build {self.build_temp} --target install'
+        cmd = f"cmake {cmake_args} -S{HERE} -B{self.build_temp};"
+        cmd += f"cmake --build {self.build_temp} --target install"
         _run_cmd(cmd)
 
         try:
-            import mypy  # noqa
+            import mypy
 
-            cmd = 'stubgen -m _eval_frame -o .'
-            _run_cmd(cmd, cwd=f'{HERE}/src/paddlefx')
+            cmd = "stubgen -m _eval_frame -o ."
+            _run_cmd(cmd, cwd=f"{HERE}/src/paddlefx")
         except ImportError:
-            warnings.warn('No mypy package is found for stub generating')
+            warnings.warn("No mypy package is found for stub generating")
 
         # copy extensions
         for ext in self.extensions:
@@ -89,21 +89,21 @@ class CMakeBuildExt(build_ext):
             self.copy_file(src, dst)
 
 
-if __name__ == '__main__':
-    ext_modules = [Extension('paddlefx._eval_frame', [])]
-    cmdclass = {'build_ext': CMakeBuildExt}
+if __name__ == "__main__":
+    ext_modules = [Extension("paddlefx._eval_frame", [])]
+    cmdclass = {"build_ext": CMakeBuildExt}
     # TODO: add more info
     setup(
-        name='paddlefx',
-        description='paddlefx is an experimental project of paddle python IR.',
-        license='Apache 2.0',
-        license_files=('LICENSE',),
-        python_requires='>=3.7',
+        name="paddlefx",
+        description="paddlefx is an experimental project of paddle python IR.",
+        license="Apache 2.0",
+        license_files=("LICENSE",),
+        python_requires=">=3.7",
         install_requires=_get_install_requires(),
-        package_dir={'': 'src'},
-        packages=find_packages(where='src'),
+        package_dir={"": "src"},
+        packages=find_packages(where="src"),
         package_data={
-            'paddlefx': ['py.typed', '*.pyi'],
+            "paddlefx": ["py.typed", "*.pyi"],
         },
         ext_modules=ext_modules,
         cmdclass=cmdclass,
