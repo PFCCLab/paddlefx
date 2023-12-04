@@ -114,7 +114,7 @@ class OutputGraph:
         )
         compiled_fn = disable(compiled_fn)
         tx.f_globals[compiled_fn_name] = compiled_fn
-        self.code_options['co_names'] += (compiled_fn_name,)
+        self.code_options["co_names"] += (compiled_fn_name,)
 
         cg = PyCodegen(tx)
         cg.make_call_generated_code(compiled_fn_name)
@@ -147,7 +147,7 @@ class OutputGraph:
         cg = PyCodegen(tx, graph_output_var)
         cg.call(stack_values)
 
-        if not (root := tx.f_locals.get('self', None)):
+        if not (root := tx.f_locals.get("self", None)):
             root = paddle.nn.Layer()  # type: ignore
 
         output = []
@@ -165,4 +165,4 @@ class OutputGraph:
         self.add_output_instructions(
             [PyCodegen(tx).create_store(var) for var in reversed(restore_vars)]
         )
-        log_instructions(self.instructions, 'COMPILE_SUBGRAPH', log_fn=logger.debug)
+        log_instructions(self.instructions, "COMPILE_SUBGRAPH", log_fn=logger.debug)

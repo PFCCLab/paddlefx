@@ -1,8 +1,6 @@
-from __future__ import annotations
-
-from .base import CompilerBase, DummyCompiler  # noqa: F401
+from .base import CompilerBase, DummyCompiler
 
 try:
-    from .tvm import TVMCompiler  # noqa: F401
+    from .tvm import TVMCompiler
 except ImportError:
     pass

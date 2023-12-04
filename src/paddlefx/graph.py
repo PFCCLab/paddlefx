@@ -13,28 +13,28 @@ from .proxy import magic_methods
 
 
 def _is_magic(x):
-    return x.startswith('__') and x.endswith('__')
+    return x.startswith("__") and x.endswith("__")
 
 
 def snake_case(s):
-    return ''.join(['_' + i.lower() if i.isupper() else i for i in s]).lstrip('_')
+    return "".join(["_" + i.lower() if i.isupper() else i for i in s]).lstrip("_")
 
 
 def _qualified_name(func):
-    if hasattr(func, 'node'):
+    if hasattr(func, "node"):
         name = func.node.name
-    elif hasattr(func, '__name__'):
+    elif hasattr(func, "__name__"):
         name = func.__name__
-    elif hasattr(func, 'name'):
+    elif hasattr(func, "name"):
         name = func.name
     else:
-        raise NotImplementedError(f'cannot get name of {func}')
+        raise NotImplementedError(f"cannot get name of {func}")
 
     # things like getattr just appear in builtins
     if getattr(builtins, name, None) is func:
         return name
     module = _find_module_of_method(func)
-    return f'{module}.{name}'
+    return f"{module}.{name}"
 
 
 def _is_illegal_name(name: str, obj: Any) -> bool:
@@ -50,7 +50,7 @@ def _is_illegal_name(name: str, obj: Any) -> bool:
 
 
 def _find_module_of_method(orig_method):
-    if hasattr(orig_method, '__name__'):
+    if hasattr(orig_method, "__name__"):
         name = orig_method.__name__
     else:
         name = orig_method.__class__.__name__
@@ -60,25 +60,25 @@ def _find_module_of_method(orig_method):
     for guess in [paddle, paddle.nn.functional]:
         if getattr(guess, name, None) is orig_method:
             return guess.__name__
-    raise RuntimeError(f'cannot find module for {orig_method}')
+    raise RuntimeError(f"cannot find module for {orig_method}")
 
 
 def _format_args(args, kwargs):
-    args_s = ', '.join(repr(a) for a in args)
-    kwargs_s = ', '.join(f'{k} = {repr(v)}' for k, v in kwargs.items())
+    args_s = ", ".join(repr(a) for a in args)
+    kwargs_s = ", ".join(f"{k} = {v!r}" for k, v in kwargs.items())
     if args_s and kwargs_s:
-        return f'{args_s}, {kwargs_s}'
+        return f"{args_s}, {kwargs_s}"
     return args_s or kwargs_s
 
 
 def _format_target(base, target):
-    elems = target.split('.')
+    elems = target.split(".")
     r = base
     for e in elems:
         if not e.isidentifier():
             r = f'getattr({r}, "{e}")'
         else:
-            r = f'{r}.{e}'
+            r = f"{r}.{e}"
     return r
 
 
@@ -112,8 +112,8 @@ class _InsertPoint:
 
 
 class _node_list:
-    def __init__(self, graph: Graph, direction: str = '_next'):
-        assert direction in ['_next', '_prev']
+    def __init__(self, graph: Graph, direction: str = "_next"):
+        assert direction in ["_next", "_prev"]
         self.graph = graph
         self.direction = direction
 
@@ -129,31 +129,31 @@ class _node_list:
             cur = getattr(cur, direction)
 
     def __reversed__(self):
-        return _node_list(self.graph, '_next' if self.direction == '_prev' else '_prev')
+        return _node_list(self.graph, "_next" if self.direction == "_prev" else "_prev")
 
 
 class Graph:
     def __init__(self):
         self._used_names = {}  # base name -> number
-        self._root = Node(self, '', 'root', '', (), {})
+        self._root = Node(self, "", "root", "", (), {})
         self._len = 0
         # Set the default insert point to the graph trailing
         self._insert = self._root.prepend
 
     def create_node(self, op, target=None, args=None, kwargs=None, name=None):
         assert op in (
-            'call_function',
-            'call_method',
-            'get_param',
-            'call_module',
-            'placeholder',
-            'output',
+            "call_function",
+            "call_method",
+            "get_param",
+            "call_module",
+            "placeholder",
+            "output",
         )
         args = () if args is None else tuple(args)
         kwargs = {} if kwargs is None else kwargs
         name = name if name is not None else self._name(target or op)
         if name[0].isdigit():
-            name = f'_{name}'
+            name = f"_{name}"
         n = Node(
             self,
             name,
@@ -167,19 +167,19 @@ class Graph:
         return n
 
     def output(self, result):
-        return self.create_node(op='output', target='output', args=(result,))
+        return self.create_node(op="output", target="output", args=(result,))
 
     def _name(self, op):
-        if hasattr(op, '__name__'):
+        if hasattr(op, "__name__"):
             op = op.__name__
-        if hasattr(op, 'name'):
+        if hasattr(op, "name"):
             op = op.name
-        if hasattr(op, 'node'):
+        if hasattr(op, "node"):
             op = op.node.name
 
         if _is_magic(op):
             op = op[2:-2]
-        op = op.replace('.', '_')
+        op = op.replace(".", "_")
         op = snake_case(op)
 
         if op not in self._used_names:
@@ -192,17 +192,17 @@ class Graph:
             ):
                 return op
         i = self._used_names[op] = self._used_names[op] + 1
-        return f'{op}_{i}'
+        return f"{op}_{i}"
 
     def get_param(self, target):
-        return self.create_node('get_param', target)
+        return self.create_node("get_param", target)
 
     def placeholder(self, name):
-        return self.create_node('placeholder', target=name, name=name.replace('*', ''))
+        return self.create_node("placeholder", target=name, name=name.replace("*", ""))
 
     def call_module(self, target, args, kwargs):
         return self.create_node(
-            'call_module', target, args, kwargs, name=target.replace('.', '_')
+            "call_module", target, args, kwargs, name=target.replace(".", "_")
         )
 
     def call_function(
@@ -213,7 +213,7 @@ class Graph:
         return_type: Any | None = None,
     ) -> Node:
         return self.create_node(
-            op='call_function',
+            op="call_function",
             target=target,
             args=args,
             kwargs=kwargs,
@@ -223,8 +223,8 @@ class Graph:
     def erase_node(self, to_erase: Node) -> None:
         if len(to_erase.users) > 0:
             raise RuntimeError(
-                f'Tried to erase Node {to_erase} but it still had {len(to_erase.users)} '
-                f'users in the graph: {to_erase.users}!'
+                f"Tried to erase Node {to_erase} but it still had {len(to_erase.users)} "
+                f"users in the graph: {to_erase.users}!"
             )
 
         to_erase._remove_from_list()
@@ -259,63 +259,63 @@ class Graph:
         body = []
         for node in self.nodes:
             node: Node
-            if node.op == 'placeholder':
+            if node.op == "placeholder":
                 free_vars.append(node.target)
                 if node.target != node.name:
-                    body.append(f'{node.name} = {node.target}\n')
+                    body.append(f"{node.name} = {node.target}\n")
                 continue
-            elif node.op == 'call_method':
+            elif node.op == "call_method":
                 body.append(
-                    f'{node.name} = {_format_target(repr(node.args[0]), node.target)}'
-                    f'({_format_args(node.args[1:], node.kwargs)})\n'
+                    f"{node.name} = {_format_target(repr(node.args[0]), node.target)}"
+                    f"({_format_args(node.args[1:], node.kwargs)})\n"
                 )
                 continue
-            elif node.op == 'call_function':
+            elif node.op == "call_function":
                 # pretty print operators
                 if (
-                    node.target.__module__ == '_operator'
+                    node.target.__module__ == "_operator"
                     and node.target.__name__ in magic_methods
                 ):
                     body.append(
-                        f'{node.name} = {magic_methods[node.target.__name__].format(*(repr(a) for a in node.args))}\n'
+                        f"{node.name} = {magic_methods[node.target.__name__].format(*(repr(a) for a in node.args))}\n"
                     )
                     continue
                 if isinstance(node.target, Node):
                     body.append(
-                        f'{node.name} = {node.target}({_format_args(node.args, node.kwargs)})\n'
+                        f"{node.name} = {node.target}({_format_args(node.args, node.kwargs)})\n"
                     )
                     continue
                 qualified_name = _qualified_name(node.target)
                 if (
-                    qualified_name == 'getattr'
+                    qualified_name == "getattr"
                     and isinstance(node.args[1], str)
                     and node.args[1].isidentifier()
                 ):
                     # pretty print attribute access
                     body.append(
-                        f'{node.name} = {_format_target(repr(node.args[0]), node.args[1])}\n'
+                        f"{node.name} = {_format_target(repr(node.args[0]), node.args[1])}\n"
                     )
                     continue
                 body.append(
-                    f'{node.name} = {qualified_name}({_format_args(node.args, node.kwargs)})\n'
+                    f"{node.name} = {qualified_name}({_format_args(node.args, node.kwargs)})\n"
                 )
                 continue
-            elif node.op == 'call_module':
+            elif node.op == "call_module":
                 body.append(
-                    f'{node.name} = {_format_target(root_module,node.target)}({_format_args(node.args, node.kwargs)})\n'
+                    f"{node.name} = {_format_target(root_module,node.target)}({_format_args(node.args, node.kwargs)})\n"
                 )
                 continue
-            elif node.op == 'get_param':
+            elif node.op == "get_param":
                 body.append(
-                    f'{node.name} = {_format_target(root_module, node.target)}\n'
+                    f"{node.name} = {_format_target(root_module, node.target)}\n"
                 )
                 continue
-            elif node.op == 'output':
-                body.append(f'return {node.args[0]}\n')
+            elif node.op == "output":
+                body.append(f"return {node.args[0]}\n")
                 continue
-            raise NotImplementedError(f'node: {node.op} {node.target}')
+            raise NotImplementedError(f"node: {node.op} {node.target}")
 
-        src = ''.join(body)
+        src = "".join(body)
         return src, free_vars
 
     def print_tabular(self, print_mode="tabulate"):
@@ -334,7 +334,7 @@ class Graph:
                 )
                 for n in self.nodes
             ]
-            print(" ".join(['opcode', 'name', 'target', 'args', 'kwargs']))
+            print(" ".join(["opcode", "name", "target", "args", "kwargs"]))
             print("\n".join(node_specs))
         elif print_mode == "tabulate":
             try:
@@ -346,7 +346,7 @@ class Graph:
                 print(
                     tabulate(
                         node_specs,
-                        headers=['opcode', 'name', 'target', 'args', 'kwargs'],
+                        headers=["opcode", "name", "target", "args", "kwargs"],
                     )
                 )
             except ImportError:
@@ -364,7 +364,7 @@ class Graph:
                 import rich.table
 
                 table = rich.table.Table(
-                    'opcode', 'name', 'target', 'args', 'kwargs', expand=True
+                    "opcode", "name", "target", "args", "kwargs", expand=True
                 )
                 for n in self.nodes:
                     table.add_row(

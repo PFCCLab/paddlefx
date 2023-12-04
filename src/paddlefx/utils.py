@@ -25,7 +25,7 @@ def log_bytecode(prefix, name, filename, line_no, code, log_fn=logger.info):
     log_fn(format_bytecode(prefix, name, filename, line_no, code))
 
 
-def log_code(code: types.CodeType, prefix='', log_fn=logger.info):
+def log_code(code: types.CodeType, prefix="", log_fn=logger.info):
     log_bytecode(
         prefix, code.co_name, code.co_filename, code.co_firstlineno, code, log_fn=log_fn
     )
@@ -43,7 +43,7 @@ def format_instruction(inst: dis.Instruction | Instruction):
 
 def log_instructions(
     instructions: list[dis.Instruction] | list[Instruction],
-    prefix='',
+    prefix="",
     log_fn=logger.info,
 ):
     log_fn(f"{prefix}")

@@ -45,7 +45,7 @@ class CallableVariable(VariableBase):
         # nn.layer
         if isinstance(fn, paddle.nn.Layer):  # type: ignore
             # unroll nn.Sequential
-            if 'container' in fn.__module__:
+            if "container" in fn.__module__:
                 assert not kwargs
                 (arg,) = args
                 for idx, submod in enumerate(fn):
@@ -56,21 +56,21 @@ class CallableVariable(VariableBase):
                     )
                     arg = tx.stack.pop()
                 return arg
-            elif not fn.__module__.startswith('paddle.nn'):
-                globals()['self'] = tx.f_locals['self']
+            elif not fn.__module__.startswith("paddle.nn"):
+                globals()["self"] = tx.f_locals["self"]
                 result = tx.inline_call_function(
                     CallableVariable(fn=fn.forward.__func__, tx=tx),
                     (self, *args),
                     kwargs,
                 )
-                del globals()['self']
+                del globals()["self"]
                 return result
             else:  # basic layer
                 ot = type(args[0].var)
 
-                target = ''
+                target = ""
                 model = (
-                    tx.f_locals['self'] if 'self' in tx.f_locals else globals()['self']
+                    tx.f_locals["self"] if "self" in tx.f_locals else globals()["self"]
                 )
                 for name, layers in model.named_sublayers():
                     if fn is layers:
@@ -141,7 +141,7 @@ class CallableVariable(VariableBase):
         if handler:
             return handler(translator, *args, **kwargs)
         return ObjectVariable(
-            translator.output.create_node('call_function', self.var, args, kwargs)
+            translator.output.create_node("call_function", self.var, args, kwargs)
         )
         # raise NotImplementedError(f"{fn_name} is not implemented now")
 

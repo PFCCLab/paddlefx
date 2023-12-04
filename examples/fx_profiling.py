@@ -93,10 +93,10 @@ class ProfilingInterpreter(Interpreter):
         # Use the ``tabulate`` library to create a well-formatted table
         # presenting our summary information
         headers: list[str] = [
-            'Op type',
-            'Op',
-            'Average runtime (s)',
-            'Pct total runtime',
+            "Op type",
+            "Op",
+            "Average runtime (s)",
+            "Pct total runtime",
         ]
         return tabulate.tabulate(node_summaries, headers=headers)
 

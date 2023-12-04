@@ -21,7 +21,7 @@ def _binary_constructor(op_name: str):
     def _binary(self, inst: Instruction):
         op = getattr(operator, op_name)
         args = self.stack.pop_n(2)
-        res = self.output.create_node('call_function', op, args, {})
+        res = self.output.create_node("call_function", op, args, {})
         self.stack.push(res)
 
     return _binary
@@ -30,7 +30,7 @@ def _binary_constructor(op_name: str):
 def _unary_constructor(op_name: str):
     def _unary(self, inst: Instruction):
         op = getattr(operator, op_name)
-        res = self.output.create_node('call_function', op, self.stack.pop(), {})
+        res = self.output.create_node("call_function", op, self.stack.pop(), {})
         self.stack.push(res)
 
     return _unary
@@ -44,37 +44,37 @@ def _not_implemented(op_name):
 
 
 BINARY_MAPPER = {
-    'add': 'BINARY_ADD',
-    'sub': 'BINARY_SUBTRACT',
-    'mul': 'BINARY_MULTIPLY',
-    'floordiv': 'BINARY_FLOOR_DIVIDE',
+    "add": "BINARY_ADD",
+    "sub": "BINARY_SUBTRACT",
+    "mul": "BINARY_MULTIPLY",
+    "floordiv": "BINARY_FLOOR_DIVIDE",
     # NOTE: in fact, paddle doesn't support floor_divide
-    'truediv': 'BINARY_TRUE_DIVIDE',
-    'mod': 'BINARY_MOD',
-    'pow': 'BINARY_POWER',
-    'matmul': 'BINARY_MATMUL',
-    'getitem': 'BINARY_GETITEM',
-    'lshift': 'BINARY_LSHIFT',
-    'rshift': 'BINARY_RSHIFT',
-    'iadd': 'INPLACE_ADD',
-    'ifloordiv': 'INPLACE_FLOOR_DIVIDE',
-    'imod': 'INPLACE_MOD',
-    'imul': 'INPLACE_MULTIPLY',
-    'imatmul': 'INPLACE_MATRIX_MULTIPLY',
-    'ipow': 'INPLACE_POWER',
-    'isub': 'INPLACE_SUBTRACT',
-    'itruediv': 'INPLACE_TRUE_DIVIDE',
+    "truediv": "BINARY_TRUE_DIVIDE",
+    "mod": "BINARY_MOD",
+    "pow": "BINARY_POWER",
+    "matmul": "BINARY_MATMUL",
+    "getitem": "BINARY_GETITEM",
+    "lshift": "BINARY_LSHIFT",
+    "rshift": "BINARY_RSHIFT",
+    "iadd": "INPLACE_ADD",
+    "ifloordiv": "INPLACE_FLOOR_DIVIDE",
+    "imod": "INPLACE_MOD",
+    "imul": "INPLACE_MULTIPLY",
+    "imatmul": "INPLACE_MATRIX_MULTIPLY",
+    "ipow": "INPLACE_POWER",
+    "isub": "INPLACE_SUBTRACT",
+    "itruediv": "INPLACE_TRUE_DIVIDE",
 }
 
-UNARY_MAPPER = {'not_': 'UNARY_NOT', 'inv': 'UNARY_INVERT'}
+UNARY_MAPPER = {"not_": "UNARY_NOT", "inv": "UNARY_INVERT"}
 
 NOT_IMPLEMENT = {
-    'and_': 'BINARY_AND',
-    'or_': 'BINARY_OR',
-    'xor': 'BINARY_XOR',
-    'iand': 'INPLACE_AND',
-    'ior': 'INPLACE_OR',
-    'ixor': 'INPLACE_XOR',
+    "and_": "BINARY_AND",
+    "or_": "BINARY_OR",
+    "xor": "BINARY_XOR",
+    "iand": "INPLACE_AND",
+    "ior": "INPLACE_OR",
+    "ixor": "INPLACE_XOR",
 }
 
 
@@ -120,12 +120,12 @@ class InstructionTranslatorBase:
         if isinstance(fn, Attribute):
             self.stack.push(fn(*args, **kwargs))
         elif fn is isinstance:
-            res = self.output.create_node('call_function', fn, args, kwargs)
+            res = self.output.create_node("call_function", fn, args, kwargs)
             self.stack.push(res)
         elif fn.__module__.startswith("paddle"):
             if hasattr(fn, "forward"):
                 fn = fn.forward
-            res = self.output.create_node('call_function', fn, args, kwargs)
+            res = self.output.create_node("call_function", fn, args, kwargs)
             self.stack.push(res)
         elif is_custom_call:
             raise NotImplementedError("custom_call is not supported")
@@ -154,7 +154,7 @@ class InstructionTranslatorBase:
     def LOAD_ATTR(self, inst: Instruction):
         obj = self.stack.pop()
         if isinstance(obj, Proxy) and obj.node.name.startswith("self"):
-            res = self.output.create_node('get_param', inst.argval)
+            res = self.output.create_node("get_param", inst.argval)
             self.stack.push(res)
         elif hasattr(obj, inst.argval):
             value = getattr(obj, inst.argval)
@@ -173,7 +173,7 @@ class InstructionTranslatorBase:
         if isinstance(fn, Attribute):
             fn_name = repr(fn)
             if fn_name.startswith("self"):
-                res = self.output.create_node('call_module', fn.attr, args, {})
+                res = self.output.create_node("call_module", fn.attr, args, {})
             else:
                 res = fn(*args)
             self.stack.push(res)
@@ -227,14 +227,14 @@ class InstructionTranslatorBase:
         if isinstance(root, Proxy):
             res = root[idx]
         else:
-            res = self.output.create_node('call_method', "__getitem__", [root, idx], {})
+            res = self.output.create_node("call_method", "__getitem__", [root, idx], {})
         self.stack.push(res)
 
     def STORE_SUBSCR(self, inst):
         value = self.stack.pop()
         idx = self.stack.pop()
         root = self.stack.pop()
-        self.output.create_node('call_method', "__setitem__", [root, idx, value], {})
+        self.output.create_node("call_method", "__setitem__", [root, idx, value], {})
 
     def POP_TOP(self, inst: Instruction):
         self.stack.pop()
@@ -255,18 +255,18 @@ class InstructionTranslatorBase:
 
     def COMPARE_OP(self, inst: Instruction):
         op_mapper = {
-            '>': 'gt',
-            '<': 'lt',
-            '>=': 'ge',
-            '<=': 'le',
-            '==': 'eq',
-            '!=': 'ne',
-            'is': 'is_',
-            'is not': 'is_not',
+            ">": "gt",
+            "<": "lt",
+            ">=": "ge",
+            "<=": "le",
+            "==": "eq",
+            "!=": "ne",
+            "is": "is_",
+            "is not": "is_not",
         }
         op = getattr(operator, op_mapper[inst.argval])
         args = self.stack.pop_n(2)
-        res = self.output.create_node('call_function', op, args, {})
+        res = self.output.create_node("call_function", op, args, {})
         self.stack.push(res)
 
     # note: python3.9+
@@ -277,7 +277,7 @@ class InstructionTranslatorBase:
             op = operator.is_
         else:
             op = operator.is_not
-        res = self.output.create_node('call_function', op, args, {})
+        res = self.output.create_node("call_function", op, args, {})
         self.stack.push(res)
 
     def CONTAINS_OP(self, inst: Instruction):
@@ -287,7 +287,7 @@ class InstructionTranslatorBase:
             op = operator.contains
         else:
             op = lambda a, b: b not in a
-        res = self.output.create_node('call_function', op, args, {})
+        res = self.output.create_node("call_function", op, args, {})
         self.stack.push(res)
 
 

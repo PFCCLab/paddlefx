@@ -119,7 +119,7 @@ def map_aggregate(a, fn):
     if isinstance(a, tuple):
         t = tuple(map_aggregate(elem, fn) for elem in a)
         # Support NamedTuple (if it has `_fields`) by repacking into original type.
-        return t if not hasattr(a, '_fields') else type(a)(*t)
+        return t if not hasattr(a, "_fields") else type(a)(*t)
     elif isinstance(a, list):
         return list(map_aggregate(elem, fn) for elem in a)
     elif isinstance(a, dict):

@@ -96,7 +96,7 @@ class FxGraphViewer:
                     user_name = id(user)
                     dot.add_edge(pydot.Edge(node_name, user_name))
             else:
-                raise NotImplementedError(f'node: {node.op} {node.target}')
+                raise NotImplementedError(f"node: {node.op} {node.target}")
         return dot
 
     def get_graph_dot(self) -> pydot.Dot:

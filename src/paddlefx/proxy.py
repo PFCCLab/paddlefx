@@ -29,7 +29,7 @@ class Proxy:
         self.tracer = tracer
 
     def __repr__(self):
-        return f'{self.node.name}'
+        return f"{self.node.name}"
 
     def __getattr__(self, attr: str):
         # note: not added to the graph yet, if this is a method call
@@ -37,7 +37,7 @@ class Proxy:
         return Attribute(self, attr)
 
     def __getitem__(self, key: Any):
-        # note:  If you don’t add the __getitem__ part, the type checking tool will report an error
+        # note:  If you don't add the __getitem__ part, the type checking tool will report an error
         pass
 
     def __iter__(self):
@@ -68,48 +68,48 @@ class Attribute(Proxy):
         # which do not rely on the getattr call
         if self._node is None:
             self._node = _create_proxy(
-                self.tracer, 'call_function', getattr, (self.root, self.attr), {}
+                self.tracer, "call_function", getattr, (self.root, self.attr), {}
             ).node
         return self._node
 
     def __repr__(self):
-        return f'{self.root}.{self.attr}'
+        return f"{self.root}.{self.attr}"
 
     def __call__(self, *args, **kwargs):
         return _create_proxy(
-            self.tracer, 'call_method', self.attr, (self.root,) + args, kwargs
+            self.tracer, "call_method", self.attr, (self.root,) + args, kwargs
         )
 
 
 reflectable_magic_methods = {
-    'add': '{} + {}',
-    'sub': '{} - {}',
-    'mul': '{} * {}',
-    'floordiv': '{} // {}',
-    'truediv': '{} / {}',
-    'div': '{} / {}',
-    'mod': '{} % {}',
-    'pow': '{} ** {}',
-    'lshift': '{} << {}',
-    'rshift': '{} >> {}',
-    'and': '{} & {}',
-    'or': '{} | {}',
-    'xor': '{} ^ {}',
-    'getitem': '{}[{}]',
-    'iadd': '{} + {}',
+    "add": "{} + {}",
+    "sub": "{} - {}",
+    "mul": "{} * {}",
+    "floordiv": "{} // {}",
+    "truediv": "{} / {}",
+    "div": "{} / {}",
+    "mod": "{} % {}",
+    "pow": "{} ** {}",
+    "lshift": "{} << {}",
+    "rshift": "{} >> {}",
+    "and": "{} & {}",
+    "or": "{} | {}",
+    "xor": "{} ^ {}",
+    "getitem": "{}[{}]",
+    "iadd": "{} + {}",
 }
 
 magic_methods = dict(
     {
-        'eq': '{} == {}',
-        'ne': '{} != {}',
-        'lt': '{} < {}',
-        'gt': '{} > {}',
-        'le': '{} <= {}',
-        'ge': '{} >= {}',
-        'pos': '+{}',
-        'neg': '-{}',
-        'invert': '~{}',
+        "eq": "{} == {}",
+        "ne": "{} != {}",
+        "lt": "{} < {}",
+        "gt": "{} > {}",
+        "le": "{} <= {}",
+        "ge": "{} >= {}",
+        "pos": "+{}",
+        "neg": "-{}",
+        "invert": "~{}",
     },
     **reflectable_magic_methods,
 )
@@ -120,10 +120,10 @@ for method in magic_methods:
         def impl(*args, **kwargs):
             tracer = args[0].tracer
             target = getattr(operator, method)
-            return _create_proxy(tracer, 'call_function', target, args, kwargs)
+            return _create_proxy(tracer, "call_function", target, args, kwargs)
 
         impl.__name__ = method
-        as_magic = f'__{method}__'
+        as_magic = f"__{method}__"
         setattr(Proxy, as_magic, impl)
 
     scope(method)

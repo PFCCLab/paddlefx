@@ -20,7 +20,7 @@ def net(a, b):
     return c
 
 
-in_a = paddle.ones([1], dtype='float32')
-in_b = paddle.ones([1], dtype='float32')
+in_a = paddle.ones([1], dtype="float32")
+in_b = paddle.ones([1], dtype="float32")
 res = net(in_a, in_b)
 print("res = ", res)

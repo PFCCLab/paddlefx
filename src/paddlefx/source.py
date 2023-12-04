@@ -20,7 +20,7 @@ class LocalSource(Source):
     local_name: str
 
     def name(self):
-        return f"L[{repr(self.local_name)}]"
+        return f"L[{self.local_name!r}]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -28,4 +28,4 @@ class GlobalSource(Source):
     global_name: str
 
     def name(self):
-        return f"G[{repr(self.global_name)}]"
+        return f"G[{self.global_name!r}]"

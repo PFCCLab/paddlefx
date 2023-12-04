@@ -16,7 +16,7 @@ print("Before editing:")
 print(traced_layer.get_source())
 
 for node in graph.nodes:
-    if node.op == 'call_function':
+    if node.op == "call_function":
         with graph.inserting_after(node):
             new_node = graph.create_node(
                 node.op, paddle.add, args=(node.args[0], node.args[0]), kwargs={}

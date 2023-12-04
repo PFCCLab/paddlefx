@@ -16,10 +16,10 @@ _next_id = 0
 
 def exec_with_source(src, globals):
     global _next_id
-    key = f'<eval_with_key_{_next_id}>'
+    key = f"<eval_with_key_{_next_id}>"
     _next_id += 1
-    _eval_cache[key] = [line + '\n' for line in src.splitlines()]
-    exec(compile(src, key, 'exec'), globals)
+    _eval_cache[key] = [line + "\n" for line in src.splitlines()]
+    exec(compile(src, key, "exec"), globals)
 
 
 # patch linecache so that any code we exec using exec_with_source
@@ -52,23 +52,23 @@ class GraphLayer(paddle.nn.Layer):
         super().__init__()
         self.root = root
         if isinstance(root, paddle.nn.Layer):
-            if hasattr(root, 'training'):
+            if hasattr(root, "training"):
                 self.training = root.training
             for node in graph.nodes:
-                if node.op in ['get_attr', 'call_module']:
+                if node.op in ["get_attr", "call_module"]:
                     assert isinstance(node.target, str)
                     _copy_attr(root, self, node.target)
         else:
-            raise RuntimeError('Unsupported type ' + str(root) + ' passed for root!')
+            raise RuntimeError("Unsupported type " + str(root) + " passed for root!")
 
         self.graph = graph
         self._generate_forward()
 
     def _generate_forward(self):
-        body, free_variables = self.graph.python_code(root_module='self')
+        body, free_variables = self.graph.python_code(root_module="self")
         if "self" not in free_variables:
             free_variables.insert(0, "self")
-        body = '\n'.join('    ' + line for line in body.split('\n')) + '\n'
+        body = "\n".join("    " + line for line in body.split("\n")) + "\n"
         self.src = f"""\
 def forward({', '.join(free_variables)}):
     self = self.root
@@ -77,7 +77,7 @@ def forward({', '.join(free_variables)}):
         # install forward into the classes dictionary, this is what normally happens in the
         # 'class' statement
         # __new__ ensured that each instance has its own class
-        gbls = {'paddle': paddle}
+        gbls = {"paddle": paddle}
         exec_with_source(self.src, gbls)
         cls = type(self)
         for k, v in gbls.items():
@@ -92,7 +92,7 @@ def forward({', '.join(free_variables)}):
 # copy an attribute value with qualified name 'target' from 'from_module' to 'to_module'
 # This installs empty Modules where none exist yet if they are subpaths of target
 def _copy_attr(from_module: paddle.nn.Layer, to_module: paddle.nn.Layer, target: str):
-    *prefix, field = target.split('.')
+    *prefix, field = target.split(".")
     for item in prefix:
         f = getattr(from_module, item)
         t = getattr(to_module, item, None)
